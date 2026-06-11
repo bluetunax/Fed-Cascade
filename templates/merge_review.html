@@ -1,0 +1,188 @@
+<!-- /templates/merge_review.html -->
+{% extends "base.html" %}
+
+{% block title %}Merge Review - Fed Cascade{% endblock %}
+
+{% block breadcrumbs %}
+    <a href="/ledger_hub" hx-boost="true" hx-indicator="#global-loader" class="hover:text-white transition-colors">🗄️ Ledger Version Control</a>
+    <span class="mx-2">/</span>
+    <span class="text-yellow-400 font-medium">Merge Review</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6 pb-12">
+
+    <!-- Header Area -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 border-b border-bordercolor pb-4 gap-4">
+        <div>
+            <h1 class="text-4xl font-bold text-white mb-2 flex items-center">
+                <span class="mr-3 text-yellow-500">🔄</span> Branch Merge Review
+            </h1>
+            <p class="text-gray-400 flex items-center">
+                Merging <strong class="text-white mx-2 bg-gray-800 px-2 py-0.5 rounded">{{ source_name }}</strong> 
+                into <strong class="text-white mx-2 bg-gray-800 px-2 py-0.5 rounded">{{ target_name }}</strong>.
+            </p>
+        </div>
+        
+        <div class="flex space-x-3">
+            <a href="/ledger_hub" hx-boost="true" hx-indicator="#global-loader" 
+               class="bg-darkbg text-gray-300 border border-gray-600 hover:bg-gray-800 hover:text-white font-medium rounded-lg text-sm px-5 py-2.5 transition-colors">
+                Cancel Merge
+            </a>
+            
+            <form action="/commit_local_merge" method="POST" hx-boost="true" hx-indicator="#global-loader">
+                <input type="hidden" name="target_id" value="{{ target_id }}">
+                <input type="hidden" name="source_id" value="{{ source_id }}">
+                <button type="submit" class="bg-yellow-600 hover:bg-yellow-500 text-black font-bold uppercase tracking-widest rounded-lg text-sm px-5 py-2.5 transition-colors shadow-lg shadow-yellow-900/20 flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                    Confirm & Merge
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Explainer Alert -->
+    <div class="bg-[#0a0a0a] border border-gray-800 p-5 rounded-lg shadow-md relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-1 h-full bg-yellow-500"></div>
+        <p class="text-gray-300 text-sm leading-relaxed">
+            By confirming this merge, all unique data from <code>{{ source_name }}</code> will be appended to <code>{{ target_name }}</code>. 
+            If both branches contain the exact same pipeline flow, the one with the highest reported volume will be kept. 
+            <strong>Once complete, <code>{{ source_name }}</code> will be permanently deleted to prevent cache duplication.</strong>
+        </p>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center">
+            <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">Target Volume (Current)</h2>
+            <div class="text-3xl font-mono font-bold text-gray-300">${{ "{:,.0f}".format(diff.totals.local_volume) }}</div>
+        </div>
+        
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center relative overflow-hidden">
+            <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">Incoming Volume (Source)</h2>
+            <div class="text-3xl font-mono font-bold text-white">${{ "{:,.0f}".format(diff.totals.live_volume) }}</div>
+        </div>
+
+        <!-- NOTE: This is the raw volume difference between branches (Source - Target),
+             NOT the exact amount that will be appended — the merge keeps higher values
+             on conflict and never removes Target data, so the final volume can differ. -->
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center relative">
+            <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">Volume Delta (Source − Target)</h2>
+            <div class="text-3xl font-mono font-bold 
+                {% if diff.totals.net_change > 0 %} text-green-400
+                {% elif diff.totals.net_change < 0 %} text-red-400
+                {% else %} text-gray-500 {% endif %}">
+                {% if diff.totals.net_change > 0 %}+{% endif %}${{ "{:,.0f}".format(diff.totals.net_change) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- The Diff Ledger -->
+    <div class="mt-8">
+        <h3 class="text-xl font-bold text-white mb-4 flex items-center font-mono uppercase tracking-widest">
+            <span class="mr-2 text-unblue">📑</span> Incoming Changes Preview
+        </h3>
+        
+        {% if diff.added or diff.modified or diff.removed %}
+        <div class="rounded-xl border border-bordercolor shadow-xl overflow-hidden bg-cardbg">
+            <table id="merge-diff-table" class="w-full text-sm text-left text-gray-300">
+                <thead class="text-xs text-gray-400 uppercase bg-darkbg border-b border-gray-800">
+                    <tr>
+                        <th scope="col" class="px-5 py-3 w-32">Status</th>
+                        
+                        {% if stype == "Activity" %}
+                            <th scope="col" class="px-5 py-3">Recipient / Implementer</th>
+                            <th scope="col" class="px-5 py-3">Project Reference</th>
+                        {% else %}
+                            <th scope="col" class="px-5 py-3">Funding Agency</th>
+                            <th scope="col" class="px-5 py-3">Recipient</th>
+                        {% endif %}
+                        
+                        <th scope="col" class="px-5 py-3 text-right">Target Ledger</th>
+                        <th scope="col" class="px-5 py-3 text-right">Source Ledger</th>
+                        <th scope="col" class="px-5 py-3 text-right">Delta</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    
+                    <!-- ADDED ITEMS -->
+                    {% for item in diff.added %}
+                    <tr class="bg-green-900/10 hover:bg-green-900/20 transition-colors group">
+                        <td class="px-5 py-4">
+                            <span class="bg-green-900/50 text-green-400 border border-green-700/50 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-widest">Added</span>
+                        </td>
+                        
+                        {% if stype == "Activity" %}
+                            <!-- FIXED: was item.ngo_name (UN-era field; rendered blank) -->
+                            <td class="px-5 py-4 text-white font-bold">{{ item.recipient_name }}</td>
+                            <td class="px-5 py-4 text-gray-400 text-xs">{{ item.project if item.project else '—' }}</td>
+                            <td class="px-5 py-4 text-right font-mono text-gray-600 line-through">$0</td>
+                            <td class="px-5 py-4 text-right font-mono text-white">${{ "{:,.0f}".format(item.amount) }}</td>
+                            <td class="px-5 py-4 text-right font-mono text-green-400 font-bold">+${{ "{:,.0f}".format(item.amount) }}</td>
+                        {% else %}
+                            <!-- FIXED: was item.donor (UN-era field; rendered blank) -->
+                            <td class="px-5 py-4 font-medium text-gray-300">
+                                {{ item.agency }}
+                                <div class="text-[10px] text-gray-500 mt-1 uppercase">{{ item.source_database }}</div>
+                            </td>
+                            <td class="px-5 py-4 text-white font-bold">{{ item.recipient }}</td>
+                            <td class="px-5 py-4 text-right font-mono text-gray-600 line-through">$0</td>
+                            <td class="px-5 py-4 text-right font-mono text-white">${{ "{:,.0f}".format(item.new_amount) }}</td>
+                            <td class="px-5 py-4 text-right font-mono text-green-400 font-bold">+${{ "{:,.0f}".format(item.delta) }}</td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+
+                    <!-- MODIFIED ITEMS (Dashboard/Timeline only; Activity diffs never produce these) -->
+                    {% for item in diff.modified %}
+                    <tr class="bg-yellow-900/10 hover:bg-yellow-900/20 transition-colors group">
+                        <td class="px-5 py-4">
+                            <span class="bg-yellow-900/50 text-yellow-500 border border-yellow-700/50 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-widest">Modified</span>
+                        </td>
+                        <td class="px-5 py-4 font-medium text-gray-300">
+                            {{ item.agency }}
+                            <div class="text-[10px] text-gray-500 mt-1 uppercase">{{ item.source_database }}</div>
+                        </td>
+                        <td class="px-5 py-4 text-white font-bold">{{ item.recipient }}</td>
+                        <td class="px-5 py-4 text-right font-mono text-gray-500">${{ "{:,.0f}".format(item.old_amount) }}</td>
+                        <td class="px-5 py-4 text-right font-mono text-white">${{ "{:,.0f}".format(item.new_amount) }}</td>
+                        <td class="px-5 py-4 text-right font-mono font-bold 
+                            {% if item.delta > 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                            {% if item.delta > 0 %}+{% endif %}${{ "{:,.0f}".format(item.delta) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    
+                    <!-- Note: In a true local merge, we don't 'Remove' items that exist in the Target but not the Source. 
+                         We strictly Append/Modify, so diff.removed is technically ignored for Merges to prevent data loss. -->
+
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="bg-cardbg border border-dashed border-gray-700 rounded-xl p-16 text-center shadow-sm">
+            <span class="text-5xl mb-4 block">ℹ️</span>
+            <h2 class="text-2xl text-white font-bold mb-2">No unique data to append</h2>
+            <p class="text-gray-400 text-sm max-w-lg mx-auto leading-relaxed">
+                The source branch does not contain any new or higher-volume pipeline flows that don't already exist in the target branch.
+                Merging will simply delete the redundant source branch.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<script>
+    // Uses the global VanillaTable class from base.html
+    // (replaces a previous simpleDatatables call — that library was never loaded)
+    function initMergeDiffTable() {
+        if (document.getElementById("merge-diff-table")) {
+            new VanillaTable("#merge-diff-table", { perPage: 20 });
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", initMergeDiffTable);
+    document.body.addEventListener('htmx:afterSwap', initMergeDiffTable);
+</script>
+{% endblock %}

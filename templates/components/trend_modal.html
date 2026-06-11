@@ -1,0 +1,88 @@
+<!-- /templates/components/trend_modal.html -->
+<div id="trend-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    
+    <!-- Dark transparent backdrop. Clicking it triggers the fade-out animation and removes the modal. -->
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity" aria-hidden="true" 
+         onclick="closeModal()"></div>
+
+    <!-- Modal Panel -->
+    <div class="relative transform overflow-hidden rounded-xl bg-cardbg text-left shadow-2xl transition-all w-full max-w-2xl border border-bordercolor shadow-[0_0_50px_rgba(0,0,0,0.5)] opacity-0 scale-95 transition-all duration-200" id="modal-panel">
+        
+        <!-- Header -->
+        <div class="bg-darkbg px-6 py-4 border-b border-bordercolor flex justify-between items-center">
+            <div>
+                <h3 class="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-1" id="modal-title">Pipeline Trend Analysis (5-Year)</h3>
+                <div class="flex items-center text-white font-medium text-sm">
+                    <span class="text-gray-400 bg-[#2d2d2d] px-2 py-0.5 rounded text-xs mr-2">{{ donor }}</span>
+                    <span class="text-gray-600 mx-2">→</span>
+                    <span class="text-unblue truncate max-w-[200px] sm:max-w-xs">{{ recipient }}</span>
+                </div>
+            </div>
+            
+            <button type="button" class="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-unblue" onclick="closeModal()">
+                <span class="sr-only">Close panel</span>
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Body: Plotly Chart Container -->
+        <div class="p-6">
+            {% if chart_json %}
+                <div id="modal-trend-chart" class="w-full h-[200px]"></div>
+                <script>
+                    var modalChartData = {{ chart_json | safe }};
+                    // Use Plotly.react instead of newPlot so it sizes correctly inside the absolute positioned modal
+                    Plotly.react('modal-trend-chart', modalChartData.data, modalChartData.layout, {responsive: true, displayModeBar: false});
+                </script>
+            {% else %}
+                <div class="py-12 text-center text-gray-500 font-mono text-sm border border-dashed border-bordercolor rounded-lg">
+                    Insufficient historical data to plot 5-year trend.
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Footer / Context -->
+        <div class="bg-darkbg px-6 py-3 border-t border-bordercolor text-xs text-gray-500 font-mono flex justify-between items-center">
+            <span>SOURCE: LOCAL OFFLINE CACHE</span>
+            <span>PRESS [ESC] TO CLOSE</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Fade-in animation on load
+    setTimeout(() => {
+        const panel = document.getElementById('modal-panel');
+        if (panel) {
+            panel.classList.remove('opacity-0', 'scale-95');
+            panel.classList.add('opacity-100', 'scale-100');
+        }
+    }, 10);
+
+    // 2. Teardown logic
+    function closeModal() {
+        const panel = document.getElementById('modal-panel');
+        const modal = document.getElementById('trend-modal');
+        if (panel && modal) {
+            // Trigger fade out
+            panel.classList.remove('opacity-100', 'scale-100');
+            panel.classList.add('opacity-0', 'scale-95');
+            
+            // Wait for transition to finish before removing from DOM
+            setTimeout(() => {
+                modal.remove();
+            }, 200);
+        }
+    }
+
+    // 3. Close on Escape key
+    document.addEventListener('keydown', function escapeListener(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+            // Remove listener so it doesn't pile up
+            document.removeEventListener('keydown', escapeListener);
+        }
+    });
+</script>

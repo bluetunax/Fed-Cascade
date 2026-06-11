@@ -1,0 +1,190 @@
+<!-- /templates/pipeline.html -->
+{% extends "base.html" %}
+
+{% block title %}Pipeline Trend - Fed Cascade{% endblock %}
+
+{% block breadcrumbs %}
+    <a href="/?active_session_id={{ session_id if session_id else '' }}" hx-boost="true" hx-indicator="#global-loader" class="hover:text-white transition-colors">📍 State Snapshot</a>
+    <span class="mx-2">/</span>
+    <a href="/cascade?{% if session_id %}session_id={{ session_id }}&{% endif %}state_code={{ state_code }}&year={{ target_year }}" hx-boost="true" hx-indicator="#global-loader" class="hover:text-white transition-colors">{{ state_code }} ({{ target_year }})</a>
+    <span class="mx-2">/</span>
+    <span class="text-unblue font-medium">Pipeline Trend</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6 pb-12">
+
+    {% if api_rate_limited %}
+    <div class="bg-red-900/50 border border-red-500 rounded-lg p-4 mb-6 shadow-lg flex items-start">
+        <div class="text-red-400 text-2xl mr-4 mt-1">⚠️</div>
+        <div>
+            <h3 class="text-red-400 font-bold text-lg mb-1">Live Auto-Cache Failed</h3>
+            <p class="text-gray-300 text-sm leading-relaxed">
+                The Fed Cascade engine attempted to automatically fetch the data for <strong>{{ target_year }}</strong> from the live APIs, but the request timed out or was rate-limited. 
+                The chart below only reflects data already stored in your offline cache. 
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Header Area -->
+    <div class="flex flex-col md:flex-row md:justify-between md:items-start mb-4 border-b border-bordercolor pb-4 gap-4">
+        <div>
+            <div class="flex flex-wrap items-center gap-4 mb-2">
+                <h1 class="text-2xl sm:text-3xl font-bold text-white flex flex-wrap items-center gap-2">
+                    <span class="text-gray-400 font-medium text-lg">{{ agency }}</span>
+                    <span class="text-gray-600 text-xl">→</span>
+                    <span class="{% if layer == 'Macro' %}text-blue-400{% else %}text-purple-400{% endif %}">{{ recipient }}</span>
+                </h1>
+                
+                <!-- NEW: Bookmark Pipeline Button -->
+                <form hx-post="/toggle_pipeline_pin" hx-swap="outerHTML" class="inline-block pipeline-pin-form m-0">
+                    <input type="hidden" name="state_code" value="{{ state_code }}">
+                    <input type="hidden" name="agency" value="{{ agency }}">
+                    <input type="hidden" name="recipient" value="{{ recipient }}">
+                    <input type="hidden" name="year" value="{{ target_year }}">
+                    
+                    <button type="submit" 
+                            class="font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-lg border transition-colors flex items-center
+                            {% if is_pinned %}
+                                text-yellow-400 border-yellow-500/50 bg-yellow-900/20
+                            {% else %}
+                                text-gray-400 border-gray-600 hover:text-yellow-400 hover:border-yellow-500 hover:bg-yellow-900/10
+                            {% endif %}">
+                        {% if is_pinned %}⭐ Saved to Profile{% else %}☆ Save Pipeline{% endif %}
+                    </button>
+                </form>
+            </div>
+            
+            <div class="flex items-center mt-3">
+                <a href="/pipeline?state_code={{ state_code }}&agency={{ agency | urlencode }}&recipient={{ recipient | urlencode }}&year={{ target_year - 1 }}{% if session_id %}&session_id={{ session_id }}{% endif %}" 
+                   hx-boost="true" hx-indicator="#global-loader"
+                   class="text-gray-500 hover:text-white hover:bg-gray-800 p-1.5 rounded transition-colors mr-2"
+                   title="Shift horizon to {{ start_year - 1 }} - {{ target_year - 1 }}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </a>
+                
+                <p class="text-white uppercase tracking-widest text-sm font-mono font-bold bg-[#1a1a1a] px-3 py-1 rounded border border-gray-800">
+                    5-Year Horizon ({{ start_year }} - {{ target_year }}) 
+                    <span class="text-gray-500 font-normal">| {{ state_code }}</span>
+                </p>
+                
+                {% if target_year < 2025 %}
+                <a href="/pipeline?state_code={{ state_code }}&agency={{ agency | urlencode }}&recipient={{ recipient | urlencode }}&year={{ target_year + 1 }}{% if session_id %}&session_id={{ session_id }}{% endif %}" 
+                   hx-boost="true" hx-indicator="#global-loader"
+                   class="text-gray-500 hover:text-white hover:bg-gray-800 p-1.5 rounded transition-colors ml-2"
+                   title="Shift horizon to {{ start_year + 1 }} - {{ target_year + 1 }}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
+                {% else %}
+                <div class="w-7 ml-2"></div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <a href="/cascade?{% if session_id %}session_id={{ session_id }}&{% endif %}state_code={{ state_code }}&year={{ target_year }}" hx-boost="true" hx-indicator="#global-loader" 
+           class="text-gray-300 border border-gray-600 hover:bg-[#2d2d2d] hover:text-white font-medium rounded-lg text-sm px-4 py-2 transition-colors flex-shrink-0 mt-4 md:mt-0">
+            ← Back to Dashboard
+        </a>
+    </div>
+
+    <!-- DB Context Banner -->
+    <div class="bg-[#0a0a0a] border-l-4 {% if layer == 'Macro' %}border-blue-500{% else %}border-purple-500{% endif %} p-5 rounded-r-lg text-sm text-gray-300 shadow-md">
+        <strong class="text-white text-base block mb-2 font-mono uppercase tracking-widest">Historical Pipeline Scan</strong>
+        <p class="mb-3 leading-relaxed">
+            This profile isolates a single funding relationship. It scans your local cache backwards over a 5-year horizon to visualize the financial commitment consistency from <strong>{{ agency }}</strong> to <strong>{{ recipient }}</strong>.
+        </p>
+        
+        <div class="mt-4 pt-4 border-t border-gray-800 flex flex-wrap justify-between items-center text-xs font-mono">
+            <span class="text-yellow-500 font-bold flex items-center">
+                <span class="h-2 w-2 rounded-full bg-yellow-500 mr-2 animate-pulse"></span> SYSTEM STATUS: OFFLINE CACHE SCAN
+            </span>
+            <span class="text-gray-400"><strong class="text-gray-300">Pipeline Layer:</strong> {{ layer }} ({{ source_db }})</span>
+        </div>
+    </div>
+
+    <!-- Stats & Chart Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        
+        <div class="lg:col-span-1 flex flex-col gap-6">
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center flex flex-col justify-center h-full min-h-[140px]">
+                <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">5-Year Cumulated Volume</h2>
+                <div class="text-3xl font-mono font-bold text-green-400">${{ "{:,.0f}".format(total_5yr_volume) }}</div>
+            </div>
+            
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center flex flex-col justify-center h-full min-h-[140px]">
+                <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">Target Year Volume ({{ target_year }})</h2>
+                <div class="text-2xl font-mono font-bold text-white">${{ "{:,.0f}".format(target_year_volume) }}</div>
+                
+                {% if peak_year_flow %}
+                <div class="text-[10px] font-mono text-gray-500 mt-2 uppercase tracking-widest border-t border-gray-800 pt-2 mx-8">
+                    Peak: {{ peak_year_flow.year }} (${{ "{:,.0f}".format(peak_year_flow.amount_usd) }})
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl flex flex-col">
+            <h3 class="text-white font-bold mb-2 flex items-center uppercase tracking-wider text-sm font-mono">
+                <span class="{% if layer == 'Macro' %}text-blue-400{% else %}text-purple-400{% endif %} mr-2">📈</span> Volume Trend
+            </h3>
+            
+            {% if chart_json %}
+                <div id="pipeline-trend-chart" class="w-full flex-1 min-h-[200px]"></div>
+                <script>
+                    var chartData = {{ chart_json | safe }};
+                    chartData.layout.height = 250;
+                    Plotly.newPlot('pipeline-trend-chart', chartData.data, chartData.layout, {responsive: true, displayModeBar: false});
+                </script>
+            {% else %}
+                <div class="flex-1 flex items-center justify-center border border-dashed border-gray-700 rounded mt-2">
+                    <span class="text-gray-500 font-mono text-sm">Insufficient data to plot trend.</span>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- The 5-Year Ledger -->
+    <div class="mt-8">
+        <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+            <span class="mr-2">🗄️</span> 5-Year Historical Ledger
+        </h3>
+        
+        <div class="rounded-xl border border-bordercolor shadow-xl overflow-hidden bg-cardbg">
+            <table id="pipeline-ledger-table" class="w-full text-sm text-left text-gray-300">
+                <thead class="text-xs text-gray-400 uppercase bg-darkbg border-b border-gray-800">
+                    <tr>
+                        <th scope="col" class="px-6 py-4 w-32">Fiscal Year</th>
+                        <th scope="col" class="px-6 py-4">Funding Agency</th>
+                        <th scope="col" class="px-6 py-4">Recipient</th>
+                        <th scope="col" class="px-6 py-4 text-right">Captured Amount</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for flow in flow_history %}
+                    <tr class="hover:bg-[#1a1a1a] transition-colors">
+                        <td class="px-6 py-4 text-white font-mono font-bold">{{ flow.year }}</td>
+                        <td class="px-6 py-4 text-gray-400">{{ flow.agency }}</td>
+                        <td class="px-6 py-4 text-gray-300">{{ flow.recipient }}</td>
+                        <td class="px-6 py-4 text-right font-mono text-green-400 font-medium">${{ "{:,.0f}".format(flow.amount_usd) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-12 text-center text-gray-500 font-mono">No historical flows captured in local cache for this horizon.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        if (document.getElementById("pipeline-ledger-table")) {
+            new VanillaTable("#pipeline-ledger-table", { perPage: 10 });
+        }
+    });
+</script>
+{% endblock %}

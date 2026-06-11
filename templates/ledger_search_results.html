@@ -1,0 +1,144 @@
+<!-- /templates/ledger_search_results.html -->
+{% extends "base.html" %}
+
+{% block title %}Ledger Search: "{{ query }}" - Fed Cascade{% endblock %}
+
+{% block breadcrumbs %}
+    <a href="/bibliography{% if session_id %}?session_id={{ session_id }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" class="hover:text-white transition-colors">🗄️ Federal Bibliography</a>
+    <span class="mx-2">/</span>
+    <span class="text-purple-400 font-medium">Ledger Search</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6 pb-12">
+
+    <!-- Header Area -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 border-b border-bordercolor pb-4 gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-white mb-2 flex items-center">
+                <span class="mr-3 text-purple-500">🔍</span> Local Omni-Search
+            </h1>
+            <p class="text-gray-400 font-mono text-sm">
+                Results for: <strong class="text-white">"{{ query }}"</strong> 
+                <span class="ml-2 text-xs uppercase tracking-widest text-gray-500 border border-gray-700 px-2 py-0.5 rounded">Filter: {{ search_type }}</span>
+            </p>
+        </div>
+        
+        <a href="/bibliography{% if session_id %}?session_id={{ session_id }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" 
+           class="text-gray-300 border border-gray-600 hover:bg-[#2d2d2d] hover:text-white font-medium rounded-lg text-sm px-4 py-2 transition-colors">
+            ← Back to Bibliography
+        </a>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center">
+            <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">Total Matches Found</h2>
+            <div class="text-3xl font-mono font-bold text-white">{{ total_found }}</div>
+        </div>
+        
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center">
+            <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">Associated Financial Volume</h2>
+            <div class="text-3xl font-mono font-bold text-green-400">${{ "{:,.0f}".format(total_volume) }}</div>
+        </div>
+    </div>
+
+    <!-- Results Table -->
+    <div class="mt-8">
+        <h3 class="text-xl font-bold text-white mb-4 flex items-center font-mono uppercase tracking-widest">
+            <span class="mr-2 text-purple-400">📑</span> Database Matches
+        </h3>
+        
+        {% if results %}
+        <div class="rounded-xl border border-bordercolor shadow-xl overflow-hidden bg-cardbg">
+            <table id="ledger-search-table" class="w-full text-sm text-left text-gray-300 table-fixed">
+                <thead class="text-xs text-gray-400 uppercase bg-darkbg border-b border-gray-800">
+                    <tr>
+                        <th scope="col" class="px-5 py-3 w-32">Context</th>
+                        <th scope="col" class="px-5 py-3 w-48">Agency & Recipient</th>
+                        <th scope="col" class="px-5 py-3">Award Details</th>
+                        <th scope="col" class="px-5 py-3 text-right w-32">Amount</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for item in results %}
+                    <tr class="hover:bg-[#1a1a1a] transition-colors group">
+                        
+                        <!-- Context Column -->
+                        <td class="px-5 py-4">
+                            <div class="text-white font-mono font-bold text-lg mb-1">{{ item.year }}</div>
+                            <div class="text-[10px] text-blue-400 font-mono border border-blue-900 px-1.5 py-0.5 rounded bg-blue-900/20 inline-block mb-2">📍 {{ item.state_code }}</div>
+                            <div class="text-[9px] text-gray-500 uppercase tracking-widest font-bold">
+                                {% if item.record_type == "Financial Flow" %}
+                                    <span class="text-green-500">Flow Record</span>
+                                {% else %}
+                                    <span class="text-purple-500">Activity Txt</span>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Agency & Recipient Column -->
+                        <td class="px-5 py-4">
+                            <div class="text-[10px] text-gray-500 font-mono uppercase tracking-widest mb-1">{{ item.agency }}</div>
+                            <a href="/profile?recipient={{ item.recipient | urlencode }}&tab=dossier{% if session_id %}&session_id={{ session_id }}{% endif %}" 
+                               hx-boost="true" hx-indicator="#global-loader"
+                               class="text-unblue font-bold hover:text-blue-400 transition-colors inline-flex items-center break-words leading-tight">
+                                {{ item.recipient }}
+                            </a>
+                        </td>
+
+                        <!-- Award Details Column with Truncation -->
+                        <td class="px-5 py-4 overflow-hidden">
+                            <details class="group/details cursor-pointer w-full">
+                                <summary class="text-white font-medium hover:text-purple-400 transition-colors flex items-center outline-none min-w-0 w-full">
+                                    <svg class="w-4 h-4 mr-1.5 text-gray-500 group-open/details:rotate-90 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                    
+                                    <!-- Award ID -->
+                                    <span class="font-mono text-purple-400 mr-2 shrink-0">{{ item.award_id }}</span>
+                                    
+                                    <!-- Truncated snippet -->
+                                    <span class="text-gray-500 text-xs font-normal truncate flex-1">
+                                        - {{ item.description | default('No description provided', true) }}
+                                    </span>
+                                </summary>
+                                <div class="text-xs text-gray-300 leading-relaxed mt-3 pl-5 pb-2 border-l-2 border-gray-700 ml-2 bg-black/20 p-2 rounded">
+                                    {{ item.description }}
+                                </div>
+                            </details>
+                        </td>
+
+                        <!-- Amount Column -->
+                        <td class="px-5 py-4 text-right font-mono text-green-400 font-bold text-base">
+                            ${{ "{:,.0f}".format(item.amount) }}
+                        </td>
+                        
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <!-- Empty State -->
+        <div class="bg-[#111] border border-dashed border-gray-700 rounded-xl p-16 text-center shadow-inner">
+            <span class="text-5xl mb-4 block">📭</span>
+            <p class="text-xl text-white font-medium mb-2 uppercase tracking-widest font-mono">No local matches</p>
+            <p class="text-gray-500 text-sm max-w-lg mx-auto">
+                Could not find <strong class="text-white">"{{ query }}"</strong> in your local database cache. 
+                If you are looking for a highly specific contract that hasn't been ingested yet, try using the <strong>Deep Explorer</strong> tool instead.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function initLedgerSearchTable() {
+        if (document.getElementById("ledger-search-table")) {
+            new VanillaTable("#ledger-search-table", { perPage: 25 });
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", initLedgerSearchTable);
+    document.body.addEventListener('htmx:afterSwap', initLedgerSearchTable);
+</script>
+{% endblock %}

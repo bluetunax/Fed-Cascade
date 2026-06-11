@@ -1,0 +1,289 @@
+<!-- /templates/explorer.html -->
+{% extends "base.html" %}
+
+{% block title %}Deep Explorer - Fed Cascade{% endblock %}
+
+{% block breadcrumbs %}
+    <span class="text-unblue font-medium">🔬 Deep Explorer</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6 pb-12">
+
+    <!-- API Rate Limit Warning Banner -->
+    {% if api_rate_limited %}
+    <div class="bg-red-900/50 border border-red-500 rounded-lg p-5 mb-6 shadow-lg flex items-start">
+        <div class="text-red-400 text-2xl mr-4 mt-1">⚠️</div>
+        <div>
+            <h3 class="text-red-400 font-bold text-lg mb-1">External API Failure / Rejection</h3>
+            <p class="text-gray-300 text-sm leading-relaxed mb-3">
+                The USAspending API rejected the query or timed out. 
+            </p>
+            {% if api_error_message %}
+            <div class="bg-black/50 p-3 rounded border border-red-900/50 font-mono text-xs text-red-300 overflow-x-auto break-words">
+                <span class="text-red-500 font-bold">RAW ERROR:</span> {{ api_error_message }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Header Area -->
+    <div class="flex justify-between items-end mb-4 border-b border-bordercolor pb-4">
+        <div>
+            <h1 class="text-4xl font-bold text-white mb-2 flex items-center">
+                <span class="mr-3 text-unblue">🔬</span> Deep Explorer
+            </h1>
+            <p class="text-gray-400 mt-2">
+                Advanced OSINT Sandbox: Query Whole-of-Government pipelines, trace specific IDIQ vehicles, filter by PSC/NAICS codes, and dig for Sub-Awards.
+            </p>
+        </div>
+    </div>
+
+    <!-- Explainer / Methodology -->
+    <div class="bg-[#0a0a0a] border-l-4 border-unblue p-5 rounded-r-lg text-sm text-gray-300 shadow-md">
+        <strong class="text-white text-base block mb-2 font-mono uppercase tracking-widest">Live Asynchronous Query Engine</strong>
+        <p class="mb-2 leading-relaxed">
+            Unlike the standard Dashboard, this tool <strong>bypasses the local SQLite cache entirely</strong>. It executes raw, highly-targeted single-pass queries directly against the USAspending.gov Treasury APIs. 
+        </p>
+        <p class="leading-relaxed text-xs text-gray-400 font-mono mt-3">
+            <span class="text-yellow-500 font-bold mr-1">WARNING:</span> Checking "Dig for Sub-Awards" will spawn a secondary concurrent node to scrape the separate Treasury Sub-Award API endpoint. This takes longer and is highly susceptible to rate-limiting by the US Government.
+        </p>
+    </div>
+
+    <!-- The Advanced Query Builder -->
+    <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl relative mt-6">
+        <h3 class="text-gray-400 font-semibold uppercase tracking-wider text-sm mb-4">Federal Sandbox Parameters</h3>
+        
+        <form action="/explorer/search" method="GET" hx-boost="true" hx-indicator="#global-loader" class="space-y-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <!-- Agency Target -->
+                <div>
+                    <label for="agency_target" class="block text-xs font-semibold text-gray-400 mb-2">Funding Agency:</label>
+                    <select id="agency_target" name="agency_target" class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-full p-2.5">
+                        <option value="ALL" {% if agency_target == 'ALL' %}selected{% endif %}>Whole-of-Government</option>
+                        <option value="USAID" {% if agency_target == 'USAID' %}selected{% endif %}>USAID</option>
+                        <option value="DOD" {% if agency_target == 'DOD' %}selected{% endif %}>Department of Defense</option>
+                        <option value="STATE" {% if agency_target == 'STATE' %}selected{% endif %}>State Department</option>
+                    </select>
+                </div>
+
+                <!-- PSC Code -->
+                <div>
+                    <label for="psc_code" class="block text-xs font-semibold text-gray-400 mb-2">PSC Code (Optional):</label>
+                    <input type="text" id="psc_code" name="psc_code" value="{{ psc_code }}" 
+                           placeholder="e.g. 1320 (Ammunition)" autocomplete="off"
+                           class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-full p-2.5 transition-colors uppercase">
+                </div>
+
+                <!-- Specific Award ID (Replaced Parent IDIQ) -->
+                <div>
+                    <label for="award_id" class="block text-xs font-semibold text-gray-400 mb-2">Specific Award ID (PIID/FAIN):</label>
+                    <input type="text" id="award_id" name="award_id" value="{{ award_id }}" 
+                           placeholder="e.g. 19GE5023F0611" autocomplete="off"
+                           class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-full p-2.5 transition-colors">
+                </div>
+
+                <!-- Target Zone & Year -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label for="state_code" class="block text-xs font-semibold text-gray-400 mb-2">Zone (ISO-3):</label>
+                        <input type="text" id="state_code" name="state_code" value="{{ '' if state_code == 'GLOBAL' else state_code }}" 
+                               placeholder="ALL" maxlength="3" autocomplete="off"
+                               class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-full p-2.5 uppercase text-center">
+                    </div>
+                    <div>
+                        <label for="year" class="block text-xs font-semibold text-gray-400 mb-2">Fiscal Year:</label>
+                        <input type="number" id="year" name="year" value="{{ year if year else 2023 }}" required min="2000" max="2025"
+                               class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-full p-2.5 text-center">
+                    </div>
+                </div>
+
+            </div>
+            
+            <div class="flex flex-col sm:flex-row items-center justify-between pt-4 border-t border-bordercolor gap-4">
+                <div class="flex items-center">
+                    <input type="checkbox" id="fetch_subawards" name="fetch_subawards" value="true" {% if fetch_subawards %}checked{% endif %}
+                           class="w-5 h-5 text-yellow-500 bg-darkbg border-bordercolor rounded focus:ring-yellow-500 focus:ring-2 cursor-pointer transition-all">
+                    <label for="fetch_subawards" class="ml-3 text-sm font-bold text-yellow-500 cursor-pointer uppercase tracking-widest font-mono">
+                        Dig for Sub-Awards (Follow the money to the ground)
+                    </label>
+                </div>
+                
+                <button type="submit" class="w-full sm:w-auto text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-900 font-bold uppercase tracking-widest text-sm px-8 py-3 rounded-lg transition-colors shadow-lg">
+                    Execute Deep Scan
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- RESULTS AREA -->
+    <!-- ============================================== -->
+    {% if has_searched %}
+    
+    <!-- Top Stats Row -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center">
+            <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">Discovered Prime Volume</h2>
+            <div class="text-4xl font-mono font-bold text-blue-400">${{ "{:,.0f}".format(total_prime) }}</div>
+        </div>
+        
+        <div class="bg-cardbg border {% if fetch_subawards %}border-yellow-900/50{% else %}border-bordercolor{% endif %} rounded-xl p-6 shadow-xl text-center relative overflow-hidden">
+            {% if fetch_subawards %}
+                <div class="absolute inset-0 bg-yellow-900/5 pointer-events-none"></div>
+            {% endif %}
+            <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">Discovered Sub-Award Volume</h2>
+            <div class="text-4xl font-mono font-bold {% if fetch_subawards %}text-yellow-400{% else %}text-gray-600{% endif %}">
+                ${{ "{:,.0f}".format(total_sub) }}
+            </div>
+            {% if not fetch_subawards %}
+                <div class="absolute top-2 right-2 text-[9px] text-gray-500 font-mono uppercase border border-gray-700 px-1 rounded">Not Queried</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 1. PRIME AWARDS TABLE -->
+    <div class="mt-8">
+        <h3 class="text-xl font-bold text-white mb-4 flex items-center font-mono uppercase tracking-widest">
+            <span class="mr-2 text-blue-400">🏛️</span> Level 1: Prime Awards
+        </h3>
+        
+        {% if prime_data %}
+        <div class="rounded-xl border border-bordercolor shadow-xl overflow-hidden bg-cardbg">
+            <table id="explorer-prime-table" class="w-full text-sm text-left text-gray-300">
+                <thead class="text-xs text-gray-400 uppercase bg-darkbg border-b border-gray-800">
+                    <tr>
+                        <th scope="col" class="px-5 py-3 w-48">Funding Agency</th>
+                        <th scope="col" class="px-5 py-3">Prime Recipient</th>
+                        <th scope="col" class="px-5 py-3">Contract Identifiers</th>
+                        <th scope="col" class="px-5 py-3 text-right">Amount (USD)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for flow in prime_data %}
+                    <tr class="hover:bg-[#1a1a1a] transition-colors">
+                        <td class="px-5 py-4 font-medium text-gray-300">
+                            {{ flow.agency }}
+                            <div class="text-[9px] text-gray-500 mt-1 uppercase tracking-widest font-mono">📍 ISO-3: {{ flow.state_code }}</div>
+                        </td>
+                        
+                        <td class="px-5 py-4">
+                            <span class="text-white font-bold block mb-1">{{ flow.recipient }}</span>
+                            <span class="bg-blue-900/30 text-blue-400 border border-blue-800 text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wide">{{ flow.flow_type }}</span>
+                        </td>
+                        
+                        <td class="px-5 py-4">
+                            <div class="flex flex-col gap-1 text-[11px] font-mono">
+                                <div><span class="text-gray-500">PIID:</span> <span class="text-gray-300">{{ flow.award_id_piid if flow.award_id_piid else 'N/A' }}</span></div>
+                                {% if flow.parent_award_id and flow.parent_award_id != 'None' %}
+                                    <div><span class="text-gray-500">PARENT:</span> <span class="text-yellow-400">{{ flow.parent_award_id }}</span></div>
+                                {% endif %}
+                                {% if flow.psc_code and flow.psc_code != 'None' %}
+                                    <div><span class="text-gray-500">PSC:</span> <span class="text-purple-400">{{ flow.psc_code }}</span></div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        
+                        <td class="px-5 py-4 text-right font-mono text-green-400 font-bold text-base">
+                            ${{ "{:,.0f}".format(flow.amount_usd) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="bg-[#111] border border-dashed border-gray-800 rounded-xl p-10 text-center shadow-inner">
+            <span class="text-3xl mb-3 block">📭</span>
+            <p class="text-gray-400 font-mono text-sm uppercase tracking-widest">No Prime Awards Found</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 2. SUB AWARDS TABLE -->
+    {% if fetch_subawards %}
+    <div class="mt-12">
+        <h3 class="text-xl font-bold text-white mb-4 flex items-center font-mono uppercase tracking-widest">
+            <span class="mr-2 text-yellow-500">🕸️</span> Level 2: Sub-Awards
+        </h3>
+        
+        {% if sub_data %}
+        <div class="rounded-xl border border-yellow-900/50 shadow-xl overflow-hidden bg-cardbg">
+            <table id="explorer-sub-table" class="w-full text-sm text-left text-gray-300">
+                <thead class="text-xs text-gray-400 uppercase bg-[#0f0f0f] border-b border-gray-800">
+                    <tr>
+                        <th scope="col" class="px-5 py-3 w-48">Prime Context</th>
+                        <th scope="col" class="px-5 py-3">Sub-Awardee (The Ground)</th>
+                        <th scope="col" class="px-5 py-3">Sub-Award ID</th>
+                        <th scope="col" class="px-5 py-3 text-right">Amount (USD)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for flow in sub_data %}
+                    <tr class="hover:bg-[#1a1a1a] transition-colors">
+                        
+                        <td class="px-5 py-4">
+                            <div class="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-1">Funding Agency</div>
+                            <div class="font-medium text-gray-300 text-xs leading-tight mb-2">{{ flow.agency }}</div>
+                            <div class="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-1 mt-2 border-t border-gray-800 pt-2">Prime Contract ID</div>
+                            <div class="font-mono text-blue-400 text-xs break-all">{{ flow.parent_award_id if flow.parent_award_id else 'Unknown' }}</div>
+                        </td>
+                        
+                        <td class="px-5 py-4">
+                            <span class="text-white font-bold block mb-1 text-base">{{ flow.recipient }}</span>
+                            <span class="bg-yellow-900/30 text-yellow-500 border border-yellow-800/50 text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wide">{{ flow.flow_type }}</span>
+                            <div class="text-[9px] text-gray-500 mt-2 uppercase tracking-widest font-mono">📍 ISO-3: {{ flow.state_code }}</div>
+                        </td>
+                        
+                        <td class="px-5 py-4">
+                            <span class="font-mono text-gray-300 text-xs break-all">{{ flow.award_id_piid }}</span>
+                        </td>
+                        
+                        <td class="px-5 py-4 text-right font-mono text-yellow-400 font-bold text-base">
+                            ${{ "{:,.0f}".format(flow.amount_usd) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="bg-[#111] border border-dashed border-gray-800 rounded-xl p-10 text-center shadow-inner">
+            <span class="text-3xl mb-3 block">📭</span>
+            <p class="text-gray-400 font-mono text-sm uppercase tracking-widest">No Sub-Awards Reported</p>
+            <p class="text-gray-600 text-xs mt-2 max-w-md mx-auto">
+                Prime contractors do not always report their sub-awards, or there may be a lag in Treasury processing.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        if (document.getElementById("explorer-prime-table")) {
+            new VanillaTable("#explorer-prime-table", { perPage: 15 });
+        }
+        if (document.getElementById("explorer-sub-table")) {
+            new VanillaTable("#explorer-sub-table", { perPage: 15 });
+        }
+    });
+
+    // Re-init on HTMX load
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        if (document.getElementById("explorer-prime-table")) {
+            new VanillaTable("#explorer-prime-table", { perPage: 15 });
+        }
+        if (document.getElementById("explorer-sub-table")) {
+            new VanillaTable("#explorer-sub-table", { perPage: 15 });
+        }
+    });
+</script>
+{% endblock %}

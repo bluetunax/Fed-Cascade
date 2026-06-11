@@ -1,0 +1,240 @@
+<!-- /templates/activity_results.html -->
+{% extends "base.html" %}
+
+{% block title %}Search: "{{ keyword }}" - Fed Cascade{% endblock %}
+
+{% block breadcrumbs %}
+    <a href="/activity?active_session_id={{ session_id }}" hx-boost="true" hx-indicator="#global-loader" class="hover:text-white transition-colors">📍 Activity Search</a>
+    <span class="mx-2">/</span>
+    <span class="text-unblue font-medium">Results: "{{ keyword }}"</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6 pb-12">
+
+    {% if api_rate_limited %}
+    <div class="bg-red-900/50 border border-red-500 rounded-lg p-4 mb-6 shadow-lg flex items-start">
+        <div class="text-red-400 text-2xl mr-4 mt-1">⚠️</div>
+        <div>
+            <h3 class="text-red-400 font-bold text-lg mb-1">External API Rate Limit Exceeded</h3>
+            <p class="text-gray-300 text-sm leading-relaxed">
+                The USAspending API is currently throttling requests due to high traffic volume. No new data was retrieved. Please wait a few minutes before forcing a live refresh, or load a previously saved offline snapshot.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="flex justify-between items-end mb-4 border-b border-bordercolor pb-4">
+        <div>
+            <h1 class="text-3xl font-bold text-white mb-2">
+                Search Results: <span class="text-unblue">"{{ keyword }}"</span>
+            </h1>
+            <p class="text-gray-400">
+                Found <strong class="text-white">{{ results|length }}</strong> awards 
+                {% if state_code == "GLOBAL" or state_code == "ALL" %}
+                    <strong class="text-white">globally</strong>
+                {% else %}
+                    in <strong class="text-white">{{ state_code }}</strong>
+                {% endif %}
+                for 
+                {% if start_year == end_year %}
+                    {{ start_year }}
+                {% else %}
+                    {{ start_year }} - {{ end_year }}
+                {% endif %}
+            </p>
+        </div>
+        <a href="/activity?active_session_id={{ session_id }}" hx-boost="true" hx-indicator="#global-loader" 
+           class="text-gray-300 border border-gray-600 hover:bg-[#2d2d2d] hover:text-white font-medium rounded-lg text-sm px-4 py-2 transition-colors">
+            ← Back to Search
+        </a>
+    </div>
+
+    <!-- Methodology & API Confidence Section -->
+    <div class="bg-cardbg border-l-4 border-purple-500 p-5 rounded-r-lg text-sm text-gray-300 shadow-md">
+        <strong class="text-white text-base block mb-2">Award Description Scan</strong>
+        <p class="mb-3 leading-relaxed">
+            This view explicitly isolates specific awards and scans the raw descriptions/purpose text for your target keyword. 
+        </p>
+        
+        <div class="mt-4 pt-4 border-t border-bordercolor flex flex-wrap justify-between items-center text-xs">
+            {% if is_offline %}
+                <span class="text-yellow-500 font-bold flex items-center">
+                    <span class="h-2 w-2 rounded-full bg-yellow-500 mr-2 animate-pulse"></span> SYSTEM STATUS: READING FROM LOCAL LEDGER
+                </span>
+                <span class="text-gray-400"><strong class="text-gray-300">Active Database:</strong> Local SQLite Ledger</span>
+                <span class="text-gray-400"><strong class="text-gray-300">Snapshot Captured:</strong> {{ timestamp }}</span>
+            {% else %}
+                <span class="text-green-400 font-bold flex items-center">
+                    <span class="h-2 w-2 rounded-full bg-green-500 mr-2"></span> SYSTEM STATUS: LIVE CONNECTION
+                </span>
+                <span class="text-gray-400">
+                    <strong class="text-gray-300">Active DB:</strong> USAspending.gov API
+                </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- DYNAMIC PLOTLY DUAL-CHART SECTION -->
+    {% if treemap_json or timeline_json %}
+    <div class="space-y-6 mt-6">
+        
+        {% if timeline_json %}
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl w-full">
+            <div id="dynamic-timeline-chart" class="w-full"></div>
+            <script>
+                var tData = {{ timeline_json | safe }};
+                Plotly.newPlot('dynamic-timeline-chart', tData.data, tData.layout, {responsive: true});
+            </script>
+        </div>
+        {% endif %}
+
+        {% if treemap_json %}
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl w-full">
+            <div id="dynamic-treemap-chart" class="w-full"></div>
+            <script>
+                var sData = {{ treemap_json | safe }};
+                Plotly.newPlot('dynamic-treemap-chart', sData.data, sData.layout, {responsive: true});
+            </script>
+        </div>
+        {% endif %}
+
+    </div>
+    {% endif %}
+
+    <!-- Adjustable Search Filter -->
+    <div class="bg-cardbg border {% if session_id %}border-unblue ring-1 ring-unblue/50{% else %}border-bordercolor{% endif %} rounded-xl p-6 shadow-xl mt-6 relative">
+        {% if session_id %}
+        <div class="absolute top-4 right-6">
+            <a href="/unlock_session?return_url=/activity" hx-boost="true" hx-indicator="#global-loader" class="text-xs font-bold text-red-400 hover:text-red-300 transition-colors">
+                Unlock Session
+            </a>
+        </div>
+        {% endif %}
+        <h3 class="text-gray-400 font-semibold uppercase tracking-wider text-sm mb-4">
+            {% if session_id %}<span class="text-unblue font-bold">🔒 Edit Locked Session</span>{% else %}Adjust Search Parameters{% endif %}
+        </h3>
+        <form action="/activity_search" method="GET" hx-boost="true" hx-indicator="#global-loader" class="flex flex-wrap items-end gap-4">
+            {% if session_id %}<input type="hidden" name="session_id" value="{{ session_id }}">{% endif %}
+            
+            <div>
+                <label for="keyword" class="block text-xs font-semibold text-gray-400 mb-1">Keyword:</label>
+                <input type="text" id="keyword" name="keyword" value="{{ keyword }}" required class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-32 p-2.5">
+            </div>
+            <!-- FIXED: was name="country" (silently ignored by /activity_search — location filter never applied)
+                 and maxlength="2" (blocked valid ISO-3 codes like UKR) -->
+            <div>
+                <label for="state_code" class="block text-xs font-semibold text-gray-400 mb-1">Target Zone (ISO-3):</label>
+                <input type="text" id="state_code" name="state_code" value="{{ state_code if state_code != 'GLOBAL' and state_code != 'ALL' else '' }}" placeholder="ALL" maxlength="3" class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-28 p-2.5 uppercase">
+            </div>
+            <div>
+                <label for="start_year" class="block text-xs font-semibold text-gray-400 mb-1">Start Year:</label>
+                <input type="number" id="start_year" name="start_year" value="{{ start_year }}" required min="2000" max="2025" class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-24 p-2.5">
+            </div>
+            <div>
+                <label for="end_year" class="block text-xs font-semibold text-gray-400 mb-1">End Year:</label>
+                <input type="number" id="end_year" name="end_year" value="{{ end_year }}" required min="2000" max="2025" class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-24 p-2.5">
+            </div>
+            <div class="flex items-center mb-2 mx-2">
+                <input type="checkbox" id="force_refresh" name="force_refresh" value="true" class="w-4 h-4 text-unblue bg-darkbg border-bordercolor rounded cursor-pointer">
+                <label for="force_refresh" class="ml-2 text-xs font-medium text-gray-400 cursor-pointer">Force Live</label>
+            </div>
+            <button type="submit" class="text-white bg-unblue hover:bg-blue-600 focus:ring-4 font-medium rounded-lg text-sm px-4 py-2.5">Update</button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <!-- The OSINT Bibliography Word Cloud -->
+        {% if bibliography %}
+        <div class="md:col-span-2 bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl">
+            <h3 class="text-white font-bold mb-3 flex items-center"><span class="mr-2">📊</span> Sector Bibliography</h3>
+            <p class="text-xs text-gray-400 mb-4">Other major operational clusters dynamically detected in the requested data pool. <strong>Click to pivot search:</strong></p>
+            <div class="flex flex-wrap gap-2">
+                {% for sector, count in bibliography.items() %}
+                <!-- FIXED: was country= (silently ignored param — pivots lost the location filter) -->
+                <a href="/activity_search?keyword={{ sector | urlencode }}&state_code={{ state_code | urlencode }}&start_year={{ start_year }}&end_year={{ end_year }}{% if session_id %}&session_id={{ session_id }}{% endif %}" 
+                   hx-boost="true" hx-indicator="#global-loader"
+                   class="bg-darkbg border border-bordercolor text-gray-300 px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm hover:border-unblue hover:text-white transition-colors cursor-pointer">
+                    {{ sector }} <span class="text-unblue font-bold ml-1">{{ count }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Total Activity Volume Card -->
+        {% if results %}
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center flex flex-col justify-center">
+            <h2 class="text-gray-400 font-semibold uppercase tracking-wider text-sm mb-2">Total Associated Volume</h2>
+            <div class="text-3xl lg:text-4xl font-mono font-bold text-green-400">${{ "{:,.0f}".format(total) }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Results Table -->
+    {% if results %}
+    <div class="rounded-xl border border-bordercolor shadow-xl overflow-hidden bg-cardbg mt-6">
+        <table id="activity-results-table" class="w-full text-sm text-left text-gray-300">
+            <thead class="text-xs text-gray-400 uppercase bg-darkbg">
+                <tr>
+                    <th scope="col" class="px-6 py-4 w-40">Recipient</th>
+                    <th scope="col" class="px-6 py-4 w-32">Target Zone</th>
+                    <th scope="col" class="px-6 py-4 w-32">Funding Agency</th>
+                    <th scope="col" class="px-6 py-4">Award ID & Text</th>
+                    <th scope="col" class="px-6 py-4 text-right w-32">Amount (USD)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for res in results %}
+                <tr class="hover:bg-[#2a2a2a] transition-colors">
+                    <td class="px-6 py-4">
+                        <a href="/profile?recipient={{ res.recipient_name | urlencode }}&state_code={{ state_code }}&year={{ res.year }}{% if session_id %}&session_id={{ session_id }}{% endif %}" 
+                           hx-boost="true" hx-indicator="#global-loader"
+                           class="text-unblue font-bold hover:text-blue-400 transition-colors inline-flex items-center break-words">
+                            {{ res.recipient_name }}
+                        </a>
+                        <span class="text-xs text-gray-500 font-mono mt-2 block">{{ res.date }}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="bg-purple-900/50 text-purple-300 border border-purple-700 text-xs font-semibold px-2 py-1 rounded block w-fit whitespace-nowrap">
+                            📍 {{ res.state_code }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-xs font-medium text-gray-400">
+                        <span class="bg-[#2d2d2d] text-gray-200 px-2 py-1 rounded block w-fit">{{ res.agency }}</span>
+                    </td>
+                    
+                    <td class="px-6 py-4">
+                        <details class="group cursor-pointer">
+                            <summary class="text-white font-medium mb-1 hover:text-unblue transition-colors flex items-center outline-none">
+                                <svg class="w-4 h-4 mr-1.5 text-gray-500 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                {{ res.project }}
+                            </summary>
+                            <div class="text-xs text-gray-400 leading-relaxed mt-2 pl-5 pb-2 border-l-2 border-gray-700 ml-2">
+                                {{ res.description }}
+                            </div>
+                        </details>
+                    </td>
+                    
+                    <td class="px-6 py-4 text-right font-mono text-green-400 font-medium">
+                        ${{ "{:,.0f}".format(res.amount) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="bg-cardbg border border-dashed border-bordercolor rounded-xl p-12 text-center shadow-sm mt-6">
+        <span class="text-4xl mb-4 block">📭</span>
+        <p class="text-lg text-white font-medium mb-2">No activities found</p>
+        <p class="text-gray-400 text-sm">
+            Could not find any awards matching <strong class="text-white">"{{ keyword }}"</strong> 
+            {% if state_code == "GLOBAL" or state_code == "ALL" %} globally {% else %} in {{ state_code }} {% endif %} 
+            for {% if start_year == end_year %} {{ start_year }} {% else %} {{ start_year }} to {{ end_year }} {% endif %}.
+        </p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

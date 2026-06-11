@@ -1,0 +1,511 @@
+<!-- /templates/base.html -->
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Fed Cascade{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        unblue: '#3b82f6', // Kept variable name 'unblue' so CSS doesn't break, but it acts as a generic primary blue now
+                        darkbg: '#121212',
+                        cardbg: '#1e1e1e',
+                        bordercolor: '#2d2d2d'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
+    <!-- Plotly -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <link rel="stylesheet" href="/static/style.css">
+
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #121212; }
+        ::-webkit-scrollbar-thumb { background: #333333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #444444; }
+        
+        .htmx-indicator { opacity: 0; pointer-events: none; transition: opacity 200ms ease-in; }
+        .htmx-request .htmx-indicator { opacity: 1; pointer-events: auto; }
+        .htmx-request.htmx-indicator { opacity: 1; pointer-events: auto; }
+    </style>
+
+    <script>
+        if (!sessionStorage.getItem('cascade_client_id')) {
+            const randomId = 'client_' + Math.random().toString(36).substring(2, 15);
+            sessionStorage.setItem('cascade_client_id', randomId);
+        }
+        const cascadeClientId = sessionStorage.getItem('cascade_client_id');
+    </script>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-darkbg text-gray-200 font-sans h-screen flex overflow-hidden">
+
+    {% set current_sid = session_id if session_id else active_session_id %}
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="w-64 bg-cardbg border-r border-bordercolor flex flex-col flex-shrink-0 z-20 shadow-xl">
+        <div class="h-16 flex items-center px-6 border-b border-bordercolor">
+            <a href="/{% if current_sid %}?active_session_id={{ current_sid }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" class="text-xl font-bold text-white tracking-wide hover:text-unblue transition-colors flex items-center">
+                <span class="mr-2">🏛️</span> Fed Cascade
+            </a>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto py-4">
+            <div class="px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-2">Core Tools</div>
+            <ul class="space-y-1 px-3">
+                <li><a href="/{% if current_sid %}?active_session_id={{ current_sid }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" class="block px-3 py-2 text-sm font-medium rounded-md transition-colors {% if request.url.path == '/' %}bg-unblue/10 text-unblue{% else %}text-gray-300 hover:bg-[#2d2d2d] hover:text-white{% endif %}">State Snapshot</a></li>
+                <li><a href="/activity{% if current_sid %}?active_session_id={{ current_sid }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" class="block px-3 py-2 text-sm font-medium rounded-md transition-colors {% if 'activity' in request.url.path %}bg-unblue/10 text-unblue{% else %}text-gray-300 hover:bg-[#2d2d2d] hover:text-white{% endif %}">Contract Search</a></li>
+                <!-- NEW: Deep Explorer Tab -->
+                <li><a href="/explorer{% if current_sid %}?session_id={{ current_sid }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" class="block px-3 py-2 text-sm font-medium rounded-md transition-colors {% if 'explorer' in request.url.path %}bg-blue-900/30 text-blue-400{% else %}text-gray-300 hover:bg-[#2d2d2d] hover:text-white{% endif %}">Deep Explorer</a></li>
+                <li><a href="/global_search{% if current_sid %}?session_id={{ current_sid }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" class="block px-3 py-2 text-sm font-medium rounded-md transition-colors {% if 'global_search' in request.url.path %}bg-green-900/30 text-green-400{% else %}text-gray-300 hover:bg-[#2d2d2d] hover:text-white{% endif %}">Global Entity Search</a></li>
+                <li><a href="/ledger_hub{% if current_sid %}?session_id={{ current_sid }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" class="block px-3 py-2 text-sm font-medium rounded-md transition-colors {% if 'ledger_hub' in request.url.path %}bg-yellow-900/30 text-yellow-400{% else %}text-gray-300 hover:bg-[#2d2d2d] hover:text-white{% endif %}">Ledger Version Control</a></li>
+                <li><a href="/changes{% if current_sid %}?session_id={{ current_sid }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" class="block px-3 py-2 text-sm font-medium rounded-md transition-colors {% if 'changes' in request.url.path %}bg-red-900/30 text-red-400{% else %}text-gray-300 hover:bg-[#2d2d2d] hover:text-white{% endif %}">Watchdog Dashboard</a></li>
+                <li><a href="/bibliography{% if current_sid %}?session_id={{ current_sid }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" class="block px-3 py-2 text-sm font-medium rounded-md transition-colors {% if 'bibliography' in request.url.path %}bg-purple-900/30 text-purple-400{% else %}text-gray-300 hover:bg-[#2d2d2d] hover:text-white{% endif %}">Federal Bibliography</a></li>
+            </ul>
+
+            <div class="px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-8">System</div>
+            <ul class="space-y-1 px-3">
+                <li><a href="/my_cascade" hx-boost="true" hx-indicator="#global-loader" class="block px-3 py-2 text-sm font-medium rounded-md transition-colors {% if 'my_cascade' in request.url.path %}bg-gray-800 text-white{% else %}text-gray-400 hover:bg-[#2d2d2d] hover:text-white{% endif %}">👤 My Profile</a></li>
+                <li><a href="/settings{% if current_sid %}?active_session_id={{ current_sid }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" class="block px-3 py-2 text-sm font-medium rounded-md transition-colors {% if 'settings' in request.url.path %}bg-gray-800 text-white{% else %}text-gray-400 hover:bg-[#2d2d2d] hover:text-white{% endif %}">⚙️ Settings</a></li>
+            </ul>
+
+            <!-- Mapped legacy 'country' variable to mean 'State Code' -->
+            {% if country %}
+            <div class="px-5 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-8">Active Context: {{ country }}</div>
+            <ul class="space-y-1 px-3">
+                <li><a href="/cascade?{% if current_sid %}session_id={{ current_sid }}&{% endif %}state_code={{ country }}&year={{ year if year else 2023 }}&db_filter={{ db_filter if db_filter else 'all' }}" hx-boost="true" hx-indicator="#global-loader" class="block px-3 py-2 text-sm font-medium rounded-md transition-colors {% if request.url.path == '/cascade' %}bg-unblue/10 text-unblue{% else %}text-gray-300 hover:bg-[#2d2d2d] hover:text-white{% endif %}">Single-Year View</a></li>
+                <li><a href="/timeline?{% if current_sid %}session_id={{ current_sid }}&{% endif %}state_code={{ country }}&start_year={{ start_year if start_year else 2014 }}&end_year={{ end_year if end_year else 2024 }}&db_filter={{ db_filter if db_filter else 'all' }}" hx-boost="true" hx-indicator="#global-loader" class="block px-3 py-2 text-sm font-medium rounded-md transition-colors {% if request.url.path == '/timeline' %}bg-unblue/10 text-unblue{% else %}text-gray-300 hover:bg-[#2d2d2d] hover:text-white{% endif %}">Multi-Year View</a></li>
+            </ul>
+            {% endif %}
+
+            <div class="mt-8 px-6">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">System Status</h3>
+                <div class="flex items-center space-x-2 text-sm text-gray-300">
+                    <span class="relative flex h-3 w-3">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </span>
+                    <span>API Connected</span>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="p-4 border-t border-bordercolor text-xs text-gray-500 text-center">
+            Fed Cascade v1.0
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative" id="main-window">
+        
+        <div id="global-loader" class="htmx-indicator fixed inset-0 z-[100]">
+            
+            <div id="simple-loader-ui" class="absolute inset-0 flex flex-col items-center justify-center bg-darkbg/90 backdrop-blur-sm z-50">
+                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-unblue mb-4"></div>
+                <h2 class="text-xl font-semibold text-white">Aggregating Data...</h2>
+                <p class="text-gray-400 text-sm mt-2">Querying federal financial ledgers</p>
+            </div>
+
+            <div id="verbose-loader-ui" class="absolute inset-0 bg-[#000a1a]/95 backdrop-blur-md hidden flex-col items-center justify-center z-[60] border-y border-blue-500/30 shadow-[inset_0_0_100px_rgba(59,130,246,0.15)]">
+                <div id="live-status-container" class="w-full flex justify-center flex-col items-center">
+                    <div class="text-blue-500/50 font-mono text-sm animate-pulse tracking-widest uppercase">Connecting to Server...</div>
+                </div>
+            </div>
+            
+        </div>
+
+        <header class="h-16 bg-cardbg/80 backdrop-blur border-b border-bordercolor flex items-center justify-between px-8 flex-shrink-0 z-10">
+            <div class="text-sm font-medium text-gray-400 flex items-center space-x-2">
+                {% block breadcrumbs %}<span>📍 Global Dashboard</span>{% endblock %}
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8" id="page-content">
+            {% block content %}{% endblock %}
+        </div>
+        
+    </main>
+
+    {% block scripts %}{% endblock %}
+
+    <script>
+    const LiveHudTracker = {
+        interval: null,
+        start: function() {
+            const simpleUI = document.getElementById('simple-loader-ui');
+            const verboseUI = document.getElementById('verbose-loader-ui');
+            const container = document.getElementById('live-status-container');
+            const isVerbose = localStorage.getItem("cascade_verbose_mode") === "true";
+
+            if (isVerbose) {
+                simpleUI.style.display = 'none';
+                verboseUI.style.display = 'flex';
+                this.fetchStatus(container);
+                this.interval = setInterval(() => this.fetchStatus(container), 500);
+            } else {
+                simpleUI.style.display = 'flex';
+                verboseUI.style.display = 'none';
+            }
+        },
+        stop: function() {
+            if (this.interval) {
+                clearInterval(this.interval);
+                this.interval = null;
+            }
+        },
+        fetchStatus: async function(container) {
+            try {
+                const response = await fetch(`/api/status?client_id=${cascadeClientId}`);
+                if (response.ok) {
+                    const html = await response.text();
+                    container.innerHTML = html;
+                }
+            } catch (e) {}
+        }
+    };
+
+    document.body.addEventListener('htmx:configRequest', function(evt) {
+        evt.detail.headers['X-Client-ID'] = cascadeClientId;
+    });
+
+    document.addEventListener('htmx:beforeSend', function(e) {
+        if (e.detail.requestConfig.path.includes('/api/status')) return;
+        LiveHudTracker.start();
+    });
+
+    document.addEventListener('htmx:afterRequest', function(e) {
+        if (e.detail.requestConfig.path.includes('/api/status')) return;
+        LiveHudTracker.stop();
+    });
+
+    document.addEventListener('cascade:previewLoader', function() {
+        document.body.classList.add('htmx-request');
+        LiveHudTracker.start();
+    });
+
+    document.addEventListener('cascade:stopPreviewLoader', function() {
+        document.body.classList.remove('htmx-request');
+        LiveHudTracker.stop();
+    });
+    </script>
+
+    <script>
+    class VanillaTable {
+        constructor(tableId, options = {}) {
+            this.tableId = tableId;
+            this.table = document.querySelector(tableId);
+            if (!this.table) return;
+
+            if (this.table.dataset.vanillaTable) return;
+            this.table.dataset.vanillaTable = true;
+
+            this.perPage = options.perPage || 15;
+            this.currentPage = 1;
+            this.searchQuery = "";
+            this.sortCol = null;
+            this.sortAsc = true;
+            
+            this.tbody = this.table.querySelector('tbody');
+            this.thead = this.table.querySelector('thead');
+            
+            this.allRows = Array.from(this.tbody.querySelectorAll('tr:not(.empty-msg)'));
+            this.filteredRows = [...this.allRows];
+            
+            this.initUI();
+            this.setupSorting();
+            this.render();
+        }
+
+        initUI() {
+            this.wrapper = document.createElement('div');
+            this.wrapper.className = 'vanilla-table-wrapper w-full relative';
+            this.table.parentNode.insertBefore(this.wrapper, this.table);
+            this.wrapper.appendChild(this.table);
+
+            const topBar = document.createElement('div');
+            topBar.className = 'flex flex-wrap justify-between items-center mb-4 gap-4 px-2 pt-2';
+            
+            const leftContainer = document.createElement('div');
+            leftContainer.className = 'flex items-center gap-3';
+            
+            const searchInput = document.createElement('input');
+            searchInput.type = 'text';
+            searchInput.placeholder = 'Search table...';
+            searchInput.className = 'bg-darkbg border border-bordercolor text-gray-300 text-sm rounded-lg focus:border-unblue focus:ring-1 focus:ring-unblue px-3 py-2 outline-none w-full sm:w-64 transition-colors';
+            searchInput.addEventListener('input', (e) => {
+                this.searchQuery = e.target.value.toLowerCase();
+                this.currentPage = 1;
+                this.filterAndSortData();
+            });
+
+            leftContainer.appendChild(searchInput);
+            topBar.appendChild(leftContainer);
+
+            const rightContainer = document.createElement('div');
+            
+            const exportBtn = document.createElement('button');
+            exportBtn.type = 'button';
+            exportBtn.className = 'bg-[#2d2d2d] hover:bg-gray-700 text-gray-300 hover:text-white border border-bordercolor text-xs font-bold uppercase tracking-widest px-3 py-2 rounded transition-colors flex items-center shadow-sm cursor-pointer';
+            exportBtn.innerHTML = '<svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Export CSV';
+            
+            exportBtn.addEventListener('click', () => this.exportToCSV());
+            
+            rightContainer.appendChild(exportBtn);
+            topBar.appendChild(rightContainer);
+
+            this.wrapper.insertBefore(topBar, this.table);
+
+            this.bottomBar = document.createElement('div');
+            this.bottomBar.className = 'flex flex-wrap justify-between items-center mt-4 pt-4 pb-2 px-2 border-t border-bordercolor';
+            this.wrapper.appendChild(this.bottomBar);
+        }
+
+        setupSorting() {
+            if (!this.thead) return;
+            const ths = this.thead.querySelectorAll('th');
+            ths.forEach((th, index) => {
+                th.style.cursor = 'pointer';
+                th.classList.add('select-none', 'hover:text-white', 'transition-colors', 'relative', 'pr-6');
+                th.title = "Click to sort";
+                
+                const indicator = document.createElement('span');
+                indicator.className = 'absolute right-2 top-1/2 -translate-y-1/2 text-[10px] opacity-30 inline-block';
+                indicator.innerHTML = '↕';
+                th.appendChild(indicator);
+
+                th.addEventListener('click', () => {
+                    if (this.sortCol === index) {
+                        this.sortAsc = !this.sortAsc;
+                    } else {
+                        this.sortCol = index;
+                        this.sortAsc = true;
+                    }
+
+                    ths.forEach(t => {
+                        const ind = t.querySelector('span');
+                        if (ind) {
+                            ind.innerHTML = '↕';
+                            ind.classList.replace('opacity-100', 'opacity-30');
+                        }
+                    });
+                    
+                    indicator.innerHTML = this.sortAsc ? '▲' : '▼';
+                    indicator.classList.replace('opacity-30', 'opacity-100');
+                    if (this.sortAsc) {
+                        indicator.classList.add('text-unblue');
+                    } else {
+                        indicator.classList.remove('text-unblue');
+                    }
+
+                    this.filterAndSortData();
+                });
+            });
+        }
+
+        filterAndSortData() {
+            if (!this.searchQuery) {
+                this.filteredRows = [...this.allRows];
+            } else {
+                this.filteredRows = this.allRows.filter(row => {
+                    return row.textContent.toLowerCase().includes(this.searchQuery);
+                });
+            }
+
+            if (this.sortCol !== null) {
+                this.filteredRows.sort((a, b) => {
+                    const cellA = a.children[this.sortCol].textContent.trim();
+                    const cellB = b.children[this.sortCol].textContent.trim();
+                    
+                    const numA = parseFloat(cellA.replace(/[^0-9.-]+/g,""));
+                    const numB = parseFloat(cellB.replace(/[^0-9.-]+/g,""));
+
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        return this.sortAsc ? numA - numB : numB - numA;
+                    }
+
+                    return this.sortAsc 
+                        ? cellA.localeCompare(cellB) 
+                        : cellB.localeCompare(cellA);
+                });
+            }
+
+            this.render();
+        }
+
+        render() {
+            this.tbody.innerHTML = '';
+            const totalPages = Math.ceil(this.filteredRows.length / this.perPage) || 1;
+            if (this.currentPage > totalPages) this.currentPage = totalPages;
+            
+            const start = (this.currentPage - 1) * this.perPage;
+            const end = start + this.perPage;
+            const paginatedRows = this.filteredRows.slice(start, end);
+
+            if (paginatedRows.length > 0) {
+                paginatedRows.forEach(row => this.tbody.appendChild(row));
+            } else {
+                const tr = document.createElement('tr');
+                tr.className = 'empty-msg hover:bg-transparent';
+                const td = document.createElement('td');
+                td.colSpan = this.table.querySelectorAll('th').length || 1;
+                td.className = 'px-6 py-8 text-center text-gray-500 font-medium';
+                td.textContent = 'No matching entries found.';
+                tr.appendChild(td);
+                this.tbody.appendChild(tr);
+            }
+
+            this.renderPagination(totalPages, start, end);
+        }
+
+        renderPagination(totalPages, start, end) {
+            this.bottomBar.innerHTML = '';
+
+            const info = document.createElement('div');
+            info.className = 'text-xs text-gray-400 mb-4 sm:mb-0';
+            const showingEnd = Math.min(end, this.filteredRows.length);
+            const showingStart = this.filteredRows.length === 0 ? 0 : start + 1;
+            info.textContent = `Showing ${showingStart} to ${showingEnd} of ${this.filteredRows.length} entries`;
+            this.bottomBar.appendChild(info);
+
+            const btnGroup = document.createElement('div');
+            btnGroup.className = 'flex space-x-1';
+
+            const prevBtn = this.createPageBtn('Prev', this.currentPage > 1);
+            prevBtn.addEventListener('click', () => { if (this.currentPage > 1) { this.currentPage--; this.render(); }});
+            btnGroup.appendChild(prevBtn);
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= this.currentPage - 1 && i <= this.currentPage + 1)) {
+                    const pageBtn = this.createPageBtn(i, true, i === this.currentPage);
+                    pageBtn.addEventListener('click', () => { this.currentPage = i; this.render(); });
+                    btnGroup.appendChild(pageBtn);
+                } else if (i === this.currentPage - 2 || i === this.currentPage + 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'px-2 py-1 text-gray-500 font-medium';
+                    ellipsis.textContent = '...';
+                    btnGroup.appendChild(ellipsis);
+                }
+            }
+
+            const nextBtn = this.createPageBtn('Next', this.currentPage < totalPages);
+            nextBtn.addEventListener('click', () => { if (this.currentPage < totalPages) { this.currentPage++; this.render(); }});
+            btnGroup.appendChild(nextBtn);
+
+            this.bottomBar.appendChild(btnGroup);
+        }
+
+        createPageBtn(text, enabled, isActive = false) {
+            const btn = document.createElement('button');
+            btn.textContent = text;
+            btn.className = `px-3 py-1.5 text-xs rounded font-medium transition-colors ${
+                isActive 
+                    ? 'bg-unblue text-white' 
+                    : enabled 
+                        ? 'text-gray-400 hover:bg-[#2d2d2d] hover:text-white border border-transparent hover:border-gray-600' 
+                        : 'text-gray-600 cursor-not-allowed opacity-50'
+            }`;
+            btn.disabled = !enabled;
+            return btn;
+        }
+
+        exportToCSV() {
+            if (!this.thead) return;
+
+            let csvContent = "";
+            
+            const headers = Array.from(this.thead.querySelectorAll('th')).map(th => {
+                let text = th.textContent || th.innerText;
+                return `"${text.replace(/[↕▲▼]/g, '').trim().replace(/"/g, '""')}"`;
+            });
+            csvContent += headers.join(",") + "\r\n";
+
+            this.filteredRows.forEach(row => {
+                const rowData = Array.from(row.children).map(cell => {
+                    let textToExport = "";
+                    const detailsEl = cell.querySelector('details');
+                    if (detailsEl) {
+                        const summaryText = detailsEl.querySelector('summary')?.textContent || "";
+                        const detailsText = detailsEl.querySelector('div')?.textContent || "";
+                        textToExport = summaryText.trim() + " - " + detailsText.trim();
+                    } else {
+                        textToExport = cell.textContent || cell.innerText;
+                    }
+
+                    textToExport = textToExport.replace(/\s+/g, ' ').trim();
+                    return `"${textToExport.replace(/"/g, '""')}"`;
+                });
+                csvContent += rowData.join(",") + "\r\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            
+            const tableName = this.tableId.replace('#', '').replace('-table', '');
+            const dateStr = new Date().toISOString().split('T')[0];
+            const filename = `fedcascade_${tableName}_export_${dateStr}.csv`;
+
+            if (navigator.msSaveBlob) { 
+                navigator.msSaveBlob(blob, filename);
+            } else {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+    }
+
+    window.initAllVanillaTables = function() {
+        const tableIds = [
+            '#activity-results-table', 
+            '#macro-table', 
+            '#micro-table', 
+            '#timeline-table', 
+            '#dossier-table', 
+            '#country-dossier-table', 
+            '#dossier-flows-table', 
+            '#dossier-projects-table',
+            '#global-search-table',
+            '#watchdog-table',
+            '#pinned-awards-table',
+            '#exclusion-rules-table',
+            '#explorer-prime-table',
+            '#explorer-sub-table'
+        ];
+        
+        tableIds.forEach(id => {
+            const tableEl = document.querySelector(id);
+            if (tableEl && !tableEl.dataset.vanillaTable) {
+                new VanillaTable(id, { perPage: 15 });
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', window.initAllVanillaTables);
+    document.body.addEventListener('htmx:afterSwap', window.initAllVanillaTables);
+    </script>
+</body>
+</html>

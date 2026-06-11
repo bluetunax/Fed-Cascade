@@ -1,0 +1,231 @@
+<!-- /templates/user_profile.html -->
+{% extends "base.html" %}
+
+{% block title %}My Profile - Fed Cascade{% endblock %}
+
+{% block breadcrumbs %}
+    <span class="text-gray-400 font-mono tracking-widest text-xs">👤 SYSTEM PROFILE</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-8 pb-12 font-sans">
+
+    <!-- Header Area -->
+    <div class="border-b-2 border-gray-700 pb-6">
+        <h1 class="text-4xl font-bold text-white mb-2 uppercase tracking-tight flex items-center">
+            <span class="text-gray-500 mr-3">👤</span> Analyst Profile
+        </h1>
+        <p class="text-gray-400 text-sm font-mono uppercase tracking-wider">Manage your saved awards, pipeline trends, and database filters.</p>
+    </div>
+
+    <!-- Pinned Pipelines Section (The missing piece!) -->
+    <div>
+        <div class="flex justify-between items-end mb-4">
+            <h2 class="text-2xl font-bold text-white flex items-center">
+                <span class="text-yellow-400 mr-2">📈</span> Saved Pipeline Trends
+            </h2>
+            <span class="text-sm font-mono text-gray-500">{{ pinned_pipelines|length }} Saved</span>
+        </div>
+
+        {% if pinned_pipelines %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for pipe in pinned_pipelines %}
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-5 shadow-lg relative group transition-colors hover:border-yellow-500/50 flex flex-col justify-between">
+                
+                <!-- Delete Button -->
+                <button hx-delete="/remove_pinned_pipeline/{{ pipe.id }}" 
+                        class="absolute top-4 right-4 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove Pipeline">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+
+                <div>
+                    <div class="text-[10px] text-gray-500 font-mono uppercase tracking-widest mb-3 flex items-center">
+                        <span class="bg-blue-900/30 text-blue-400 border border-blue-900 px-1.5 py-0.5 rounded mr-2">📍 {{ pipe.state_code }}</span>
+                        5-Year Horizon ({{ pipe.year - 4 }} - {{ pipe.year }})
+                    </div>
+                    <div class="text-xs text-gray-400 mb-1">{{ pipe.agency }}</div>
+                    <div class="text-lg font-bold text-white leading-tight mb-4">{{ pipe.recipient }}</div>
+                </div>
+
+                <a href="/pipeline?state_code={{ pipe.state_code }}&agency={{ pipe.agency | urlencode }}&recipient={{ pipe.recipient | urlencode }}&year={{ pipe.year }}" 
+                   hx-boost="true" hx-indicator="#global-loader"
+                   class="block text-center w-full bg-[#2d2d2d] hover:bg-yellow-900/30 text-gray-300 hover:text-yellow-400 border border-bordercolor hover:border-yellow-700/50 py-2 rounded text-xs font-bold uppercase tracking-widest transition-colors mt-auto">
+                    View Dashboard →
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-cardbg border border-dashed border-bordercolor rounded-xl p-12 text-center shadow-sm">
+            <span class="text-4xl mb-4 block opacity-50">📈</span>
+            <p class="text-lg text-white font-medium mb-2">No saved pipeline trends</p>
+            <p class="text-gray-400 text-sm">
+                When viewing a specific 5-Year Pipeline dashboard, click "⭐ Save Pipeline" to bookmark it here for quick access.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Pinned Awards Section -->
+    <div class="mt-12">
+        <div class="flex justify-between items-end mb-4">
+            <h2 class="text-2xl font-bold text-white flex items-center">
+                <span class="text-yellow-400 mr-2">⭐</span> Bookmarked Awards
+            </h2>
+            <span class="text-sm font-mono text-gray-500">{{ pins|length }} Saved</span>
+        </div>
+
+        {% if pins %}
+        <div class="rounded-xl border border-bordercolor shadow-xl overflow-hidden bg-cardbg">
+            <table id="pinned-awards-table" class="w-full text-sm text-left text-gray-300">
+                <thead class="text-xs text-gray-400 uppercase bg-darkbg">
+                    <tr>
+                        <th scope="col" class="px-6 py-4 w-24">Year</th>
+                        <th scope="col" class="px-6 py-4 w-24">Zone</th>
+                        <th scope="col" class="px-6 py-4">Recipient</th>
+                        <th scope="col" class="px-6 py-4">Award Detail</th>
+                        <th scope="col" class="px-6 py-4 text-right">Amount</th>
+                        <th scope="col" class="px-6 py-4 text-center">Unpin</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for pin in pins %}
+                    <tr class="hover:bg-[#2a2a2a] transition-colors">
+                        <td class="px-6 py-4 font-mono text-gray-400">{{ pin.year }}</td>
+                        <td class="px-6 py-4 font-mono text-blue-400">📍 {{ pin.state_code }}</td>
+                        <td class="px-6 py-4 text-white font-bold">{{ pin.recipient }}</td>
+                        
+                        <td class="px-6 py-4">
+                            <details class="group cursor-pointer">
+                                <summary class="text-gray-300 font-medium hover:text-white transition-colors flex items-center outline-none">
+                                    <svg class="w-4 h-4 mr-1.5 text-gray-500 group-open:rotate-90 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                    {{ pin.project_title }}
+                                </summary>
+                                <div class="text-xs text-gray-400 leading-relaxed mt-2 pl-5 pb-2 border-l-2 border-gray-700 ml-2">
+                                    {{ pin.description }}
+                                    <div class="mt-2 text-[10px] font-mono text-gray-600 uppercase">Agency: {{ pin.agency }}</div>
+                                    <div class="mt-1 text-[10px] font-mono text-gray-600">ID: {{ pin.source_record_id }}</div>
+                                </div>
+                            </details>
+                        </td>
+                        
+                        <td class="px-6 py-4 text-right font-mono text-green-400 font-medium">${{ "{:,.0f}".format(pin.amount_usd) }}</td>
+                        
+                        <td class="px-6 py-4 text-center">
+                            <form hx-post="/toggle_pin" hx-target="closest tr" hx-swap="outerHTML" class="inline">
+                                <input type="hidden" name="source_record_id" value="{{ pin.source_record_id }}">
+                                <input type="hidden" name="year" value="{{ pin.year }}">
+                                <input type="hidden" name="agency" value="{{ pin.agency }}">
+                                <input type="hidden" name="recipient" value="{{ pin.recipient }}">
+                                <input type="hidden" name="project" value="{{ pin.project_title }}">
+                                <input type="hidden" name="description" value="{{ pin.description }}">
+                                <input type="hidden" name="amount" value="{{ pin.amount_usd }}">
+                                <input type="hidden" name="state_code" value="{{ pin.state_code }}">
+                                
+                                <button type="submit" class="text-yellow-400 hover:text-red-400 text-lg transition-colors focus:outline-none" title="Remove Pin">
+                                    ⭐
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="bg-cardbg border border-dashed border-bordercolor rounded-xl p-12 text-center shadow-sm">
+            <span class="text-4xl mb-4 block opacity-50">⭐</span>
+            <p class="text-lg text-white font-medium mb-2">No pinned awards</p>
+            <p class="text-gray-400 text-sm">
+                Click the star icon next to an award in the Dashboard or Activity Search to save it here.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Exclusion Rules Section -->
+    <div class="mt-12">
+        <div class="flex justify-between items-end mb-4">
+            <div>
+                <h2 class="text-2xl font-bold text-white flex items-center mb-1">
+                    <span class="text-red-400 mr-2">🚫</span> Exclusion Rules
+                </h2>
+                <p class="text-xs font-mono text-gray-500 uppercase tracking-widest">Global Live Filtering Engine</p>
+            </div>
+            <span class="text-sm font-mono text-gray-500">{{ rules|length }} Active</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Add New Rule Form -->
+            <div class="md:col-span-1 bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl h-fit">
+                <h3 class="text-white font-bold mb-4 flex items-center text-sm uppercase tracking-widest">
+                    <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    Add Custom Filter
+                </h3>
+                
+                <form action="/add_exclusion" method="POST" hx-boost="true" hx-indicator="#global-loader" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Target Keyword to Drop:</label>
+                        <input type="text" name="keyword" required placeholder="e.g. MISCELLANEOUS FOREIGN"
+                               class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full p-2.5">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Apply rule to:</label>
+                        <select name="rule_type" class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full p-2.5">
+                            <option value="Recipient">Recipient Name</option>
+                            <option value="Description">Award Description</option>
+                            <option value="Agency">Funding Agency</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="w-full text-white bg-red-900/50 border border-red-700 hover:bg-red-600 focus:ring-4 font-bold uppercase tracking-widest rounded-lg text-xs px-4 py-2.5 transition-colors">
+                        Add to Watchlist
+                    </button>
+                </form>
+            </div>
+
+            <!-- Active Rules Table -->
+            <div class="md:col-span-2">
+                {% if rules %}
+                <div class="rounded-xl border border-bordercolor shadow-xl overflow-hidden bg-cardbg">
+                    <table id="exclusion-rules-table" class="w-full text-sm text-left text-gray-300">
+                        <thead class="text-xs text-gray-400 uppercase bg-darkbg border-b border-gray-800">
+                            <tr>
+                                <th scope="col" class="px-6 py-3">Filtered Target</th>
+                                <th scope="col" class="px-6 py-3">Match Location</th>
+                                <th scope="col" class="px-6 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800">
+                            {% for rule in rules %}
+                            <tr class="hover:bg-[#2a2a2a] transition-colors group">
+                                <td class="px-6 py-3 font-bold text-red-400">"{{ rule.keyword }}"</td>
+                                <td class="px-6 py-3 text-gray-400 text-xs uppercase tracking-widest font-mono">{{ rule.rule_type }}</td>
+                                <td class="px-6 py-3 text-right">
+                                    <button hx-delete="/remove_exclusion/{{ rule.id }}" 
+                                            class="text-gray-500 hover:text-red-400 bg-transparent border border-transparent hover:border-red-800/50 rounded p-1 transition-colors"
+                                            title="Delete Rule">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="bg-cardbg border border-dashed border-bordercolor rounded-xl p-12 text-center shadow-sm h-full flex flex-col justify-center items-center">
+                    <p class="text-gray-400 text-sm">No exclusion rules active.</p>
+                    <p class="text-gray-500 text-xs mt-2 max-w-sm">
+                        Use the form to drop garbage data (like "MISCELLANEOUS FOREIGN AWARDEES") from future live API pulls.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+<!-- /templates/components/merge_modal.html -->
+<div id="merge-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity" aria-hidden="true" onclick="closeMergeModal()"></div>
+
+    <!-- Modal Panel -->
+    <div class="relative transform overflow-hidden rounded-xl bg-cardbg text-left shadow-2xl transition-all w-full max-w-lg border border-bordercolor opacity-0 scale-95 duration-200" id="merge-modal-panel">
+        
+        <div class="bg-[#0f0f0f] px-6 py-4 border-b border-bordercolor flex justify-between items-center">
+            <h3 class="text-sm font-bold uppercase tracking-widest text-yellow-500 flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                Merge Session
+            </h3>
+            <button type="button" class="text-gray-400 hover:text-white transition-colors" onclick="closeMergeModal()">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+
+        {% if targets %}
+        <form action="/merge_review" method="GET" class="p-6">
+            <input type="hidden" name="source_id" value="{{ source_id }}">
+            
+            <p class="text-gray-300 text-sm mb-4">
+                Select a target session. All data from <strong class="text-white">{{ source_name }}</strong> will be appended to the target.
+            </p>
+
+            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Target Session:</label>
+            <select name="target_id" required class="w-full bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 p-3 mb-6 outline-none">
+                {% for target in targets %}
+                    <!-- FIXED: was target.country (key never existed on session dicts; labels rendered blank) -->
+                    {% if target.start_year and target.end_year and target.start_year != target.end_year %}
+                        <option value="{{ target.id }}">{{ target.session_name }} ({{ target.state_code }} | {{ target.start_year }}-{{ target.end_year }})</option>
+                    {% else %}
+                        <option value="{{ target.id }}">{{ target.session_name }} ({{ target.state_code }} | {{ target.year if target.year else target.start_year }})</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+
+            <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold uppercase tracking-widest rounded-lg text-sm px-5 py-3 transition-colors shadow-lg">
+                Proceed to Merge Review
+            </button>
+        </form>
+        {% else %}
+        <!-- No compatible targets exist (e.g. this is the only session of its search type) -->
+        <div class="p-6 text-center">
+            <span class="text-3xl mb-3 block">📭</span>
+            <p class="text-white font-medium text-sm mb-2">No compatible merge targets</p>
+            <p class="text-gray-400 text-xs leading-relaxed mb-5">
+                <strong class="text-white">{{ source_name }}</strong> is the only snapshot of its search type. 
+                Merging requires another session of the same type (Dashboard, Timeline, or Activity) to merge into.
+            </p>
+            <button type="button" onclick="closeMergeModal()" 
+                    class="bg-[#2d2d2d] hover:bg-gray-700 text-gray-300 hover:text-white border border-bordercolor font-bold uppercase tracking-widest rounded-lg text-xs px-6 py-2.5 transition-colors">
+                Close
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    setTimeout(() => {
+        const panel = document.getElementById('merge-modal-panel');
+        if (panel) { panel.classList.remove('opacity-0', 'scale-95'); panel.classList.add('opacity-100', 'scale-100'); }
+    }, 10);
+
+    // Attached to window so re-opening the modal (HTMX re-injection) cleanly redefines it
+    window.closeMergeModal = function() {
+        const panel = document.getElementById('merge-modal-panel');
+        const modal = document.getElementById('merge-modal');
+        if (panel && modal) {
+            panel.classList.remove('opacity-100', 'scale-100'); panel.classList.add('opacity-0', 'scale-95');
+            setTimeout(() => { modal.remove(); }, 200);
+        }
+    }
+</script>

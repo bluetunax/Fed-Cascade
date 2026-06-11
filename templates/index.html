@@ -1,0 +1,207 @@
+<!-- /templates/index.html -->
+{% extends "base.html" %}
+
+{% block title %}Search - Fed Cascade{% endblock %}
+
+{% block breadcrumbs %}
+    <span class="text-unblue">📍 Country Snapshot</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-4 space-y-8">
+    
+    <!-- Main Search Form -->
+    <div class="bg-cardbg border border-bordercolor rounded-xl p-8 shadow-2xl relative">
+        
+        <!-- Unlock Session Button (Only shows if a session is locked) -->
+        {% if locked_session %}
+        <div class="absolute top-6 right-8">
+            <a href="/unlock_session" hx-boost="true" hx-indicator="#global-loader"
+               class="flex items-center text-xs font-bold text-red-400 bg-red-900/20 border border-red-900/50 hover:bg-red-900/40 px-3 py-1.5 rounded transition-colors">
+                <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+                Unlock Session: {{ locked_session.session_name }}
+            </a>
+        </div>
+        {% endif %}
+
+        <div class="mb-8 border-b border-bordercolor pb-4">
+            <h2 class="text-3xl font-bold text-white mb-2">Country Snapshot</h2>
+            <p class="text-gray-400 text-sm">
+                {% if locked_session %}
+                    <span class="text-unblue font-medium">Session Locked:</span> Update parameters to rewrite this snapshot.
+                {% else %}
+                    Trace federal financial flows down to prime contractors and NGOs operating internationally.
+                {% endif %}
+            </p>
+        </div>
+        
+        <form action="/cascade" method="GET" class="space-y-6" hx-boost="true" hx-indicator="#global-loader">
+            
+            {% if active_session_id %}
+            <input type="hidden" name="session_id" value="{{ active_session_id }}">
+            {% endif %}
+
+            <div>
+                <label for="session_name" class="block text-sm font-semibold text-gray-300 mb-2">Session Name (Optional):</label>
+                <input type="text" id="session_name" name="session_name" 
+                       value="{{ locked_session.session_name if locked_session else '' }}" 
+                       autocomplete="off" 
+                       class="bg-darkbg border {% if locked_session %}border-unblue ring-1 ring-unblue/50{% else %}border-bordercolor{% endif %} text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-full p-3 transition-colors" 
+                       placeholder="Optional: Leave blank to auto-generate">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="state_code" class="flex flex-wrap justify-between items-baseline text-sm font-semibold text-gray-300 mb-2">
+                        <span>Target Country (ISO-3):</span>
+                        <span class="text-[10px] text-unblue font-normal ml-1">Leave blank for GLOBAL</span>
+                    </label>
+                    <input type="text" id="state_code" name="state_code" 
+                           value="{{ locked_session.state_code if locked_session else 'UKR' }}" 
+                           required list="target_countries" autocomplete="off" 
+                           class="bg-darkbg border {% if locked_session %}border-unblue ring-1 ring-unblue/50{% else %}border-bordercolor{% endif %} text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-full p-3 transition-colors uppercase"
+                           maxlength="3" placeholder="e.g. UKR, AFG, SDN">
+                    
+                    <datalist id="target_countries">
+                        <option value="AFG">Afghanistan</option>
+                        <option value="BGD">Bangladesh</option>
+                        <option value="COD">Democratic Republic of the Congo</option>
+                        <option value="EGY">Egypt</option>
+                        <option value="ETH">Ethiopia</option>
+                        <option value="HTI">Haiti</option>
+                        <option value="IRQ">Iraq</option>
+                        <option value="JOR">Jordan</option>
+                        <option value="KEN">Kenya</option>
+                        <option value="LBN">Lebanon</option>
+                        <option value="MMR">Myanmar</option>
+                        <option value="NGA">Nigeria</option>
+                        <option value="PAK">Pakistan</option>
+                        <option value="PSE">State of Palestine</option>
+                        <option value="SOM">Somalia</option>
+                        <option value="ZAF">South Africa</option>
+                        <option value="SSD">South Sudan</option>
+                        <option value="SDN">Sudan</option>
+                        <option value="SYR">Syria</option>
+                        <option value="TUR">Turkey</option>
+                        <option value="UGA">Uganda</option>
+                        <option value="UKR">Ukraine</option>
+                        <option value="VEN">Venezuela</option>
+                        <option value="YEM">Yemen</option>
+                    </datalist>
+                </div>
+                
+                <div>
+                    <label for="year" class="block text-sm font-semibold text-gray-300 mb-2">US Fiscal Year:</label>
+                    <input type="number" id="year" name="year" 
+                           value="{{ locked_session.year if locked_session else 2023 }}" 
+                           required min="2000" max="2025"
+                           class="bg-darkbg border {% if locked_session %}border-unblue ring-1 ring-unblue/50{% else %}border-bordercolor{% endif %} text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-full p-3 transition-colors">
+                </div>
+            </div>
+            
+            <div class="flex items-center mt-4">
+                <input type="checkbox" id="force_refresh" name="force_refresh" value="true"
+                       class="w-4 h-4 text-unblue bg-darkbg border-bordercolor rounded focus:ring-unblue focus:ring-2 cursor-pointer">
+                <label for="force_refresh" class="ml-2 text-sm font-medium text-gray-300 cursor-pointer">
+                    Force Live API Update (Bypass Local Cache)
+                </label>
+            </div>
+            
+            <button type="submit" class="w-full text-white bg-unblue hover:bg-blue-600 focus:ring-4 focus:ring-blue-900 font-medium rounded-lg text-sm px-5 py-3.5 text-center transition-colors">
+                {% if locked_session %}Update Session{% else %}Execute Query{% endif %}
+            </button>
+        </form>
+
+        <div class="mt-6 pt-4 border-t border-bordercolor">
+            <div class="flex items-center space-x-4 text-xs text-gray-400">
+                <span class="flex items-center text-green-400 font-medium">
+                    <span class="h-2 w-2 rounded-full bg-green-500 mr-2"></span> Connected
+                </span>
+                <span class="border-l border-bordercolor pl-4">USAspending.gov API v2</span>
+                <span class="border-l border-bordercolor pl-4">US Department of Treasury</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Local Offline Snapshots -->
+    {% if sessions %}
+    <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl">
+        <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+            <span class="mr-2">🗄️</span> Local Ledger Snapshots
+        </h3>
+        
+        <div class="overflow-x-auto rounded-lg border border-bordercolor">
+            <table class="w-full text-sm text-left text-gray-400">
+                <thead class="text-xs text-gray-300 uppercase bg-darkbg border-b border-bordercolor">
+                    <tr>
+                        <th scope="col" class="px-6 py-3">Session Name</th>
+                        <th scope="col" class="px-6 py-3">Target</th>
+                        <th scope="col" class="px-6 py-3">Captured</th>
+                        <th scope="col" class="px-6 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in sessions %}
+                    <tr class="transition-colors border-b last:border-0 
+                               {% if active_session_id and session.id == active_session_id|int %}
+                                   bg-blue-900/20 border-unblue hover:bg-blue-900/30
+                               {% else %}
+                                   bg-cardbg border-bordercolor hover:bg-[#2d2d2d]
+                               {% endif %}">
+                               
+                        <td class="px-6 py-4 font-bold text-white whitespace-nowrap flex items-center">
+                            {% if active_session_id and session.id == active_session_id|int %}
+                                <span class="h-2 w-2 rounded-full bg-unblue mr-2"></span>
+                            {% endif %}
+                            
+                            {{ session.session_name }}
+                            
+                            {% if session.search_type == "Activity" %}
+                                <span class="ml-3 bg-purple-900/50 text-purple-300 border border-purple-700 text-[10px] px-1.5 py-0.5 rounded tracking-wide">Activity</span>
+                            {% elif session.search_type == "Timeline" %}
+                                <span class="ml-3 bg-green-900/50 text-green-300 border border-green-700 text-[10px] px-1.5 py-0.5 rounded tracking-wide">Timeline</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td class="px-6 py-4 font-medium text-gray-300 whitespace-nowrap">
+                            <!-- Swapped to state_code mapping and ISO-3 visual -->
+                            {% if session.state_code == "ALL" or session.state_code == "GLOBAL" %}
+                                🌍 Global (All Countries)
+                            {% else %}
+                                📍 {{ session.state_code }} 
+                            {% endif %}
+                            <span class="text-gray-500 ml-1">({{ session.year }})</span>
+                            
+                            {% if session.search_type == "Activity" and session.keyword %}
+                                <span class="text-xs text-gray-500 block mt-1">Key: "{{ session.keyword }}"</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td class="px-6 py-4 text-xs">
+                            {{ session.timestamp }}
+                        </td>
+                        <td class="px-6 py-4 text-right space-x-2">
+
+                            <a href="/load_session/{{ session.id }}" hx-boost="true" hx-indicator="#global-loader"
+                               class="text-unblue border border-unblue hover:bg-unblue hover:text-white font-medium rounded text-xs px-3 py-1.5 transition-colors">
+                                Load Snapshot
+                            </a>
+                            
+                            <button hx-delete="/delete_session/{{ session.id }}" 
+                                    hx-target="closest tr" 
+                                    hx-swap="outerHTML"
+                                    class="text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white font-medium rounded text-xs px-2 py-1.5 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

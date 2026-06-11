@@ -1,0 +1,359 @@
+/* static/style.css */
+
+:root {
+    --primary: #3b82f6; /* Brighter UN Blue for dark contrast */
+    --background: #121212; /* Deep dark background */
+    --card-bg: #1e1e1e;    /* Slightly lighter for cards */
+    --text-main: #e0e0e0;  /* Off-white text */
+    --text-light: #9ca3af; /* Gray text for secondary info */
+    --border: #374151;     /* Dark gray borders */
+    --success: #4ade80;    /* Green for money */
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--background);
+    color: var(--text-main);
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.center-box {
+    background: var(--card-bg);
+    padding: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    text-align: center;
+    margin-top: 10vh;
+    max-width: 500px;
+}
+
+h1, h2, h3 { 
+    margin-top: 0; 
+    color: #ffffff; 
+}
+
+.search-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+    text-align: left;
+}
+
+.form-group label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-light);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    background-color: #2d3748;
+    color: white;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.btn {
+    background-color: var(--primary);
+    color: white;
+    padding: 12px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn:hover { background-color: #2563eb; }
+
+.btn-outline {
+    background-color: transparent;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.stats-card {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.big-number {
+    font-size: 3em;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.data-table th, .data-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.data-table th {
+    background-color: #2d3748;
+    font-weight: bold;
+    color: var(--text-light);
+}
+
+.data-table tr:hover { background-color: #2d3748; }
+
+.money {
+    font-family: monospace;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: var(--success);
+}
+
+.badge {
+    background-color: #374151;
+    color: #e2e8f0;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: bold;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    background: var(--card-bg);
+    border-radius: 8px;
+}
+
+/* --- Methodology Card --- */
+.methodology {
+    background: #111827; 
+    border-left: 4px solid var(--primary);
+    padding: 15px 20px; 
+    font-size: 0.9em; 
+    color: var(--text-light); 
+    margin-bottom: 20px;
+    text-align: left;
+}
+.methodology strong { color: var(--text-main); }
+
+/* --- Loading Overlay --- */
+#loading-overlay {
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%;
+    background: rgba(18, 18, 18, 0.9); 
+    z-index: 9999;
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: center; 
+    text-align: center;
+}
+
+.spinner {
+    border: 6px solid var(--border); 
+    border-top: 6px solid var(--primary);
+    border-radius: 50%; 
+    width: 50px; 
+    height: 50px; 
+    animation: spin 1s linear infinite; 
+    margin-bottom: 20px;
+}
+
+@keyframes spin { 
+    0% { transform: rotate(0deg); } 
+    100% { transform: rotate(360deg); } 
+}
+
+
+/* ==========================================================================
+   SIMPLE-DATATABLES DARK MODE OVERRIDES (CASE-SENSITIVE FIX)
+   ========================================================================== */
+
+/* Force text color for the entire datatable wrapper (Targeting both capital and lowercase 't') */
+.dataTable-wrapper,
+.datatable-wrapper {
+    color: var(--text-main) !important;
+}
+
+/* 
+   EXTREME SPECIFICITY FIX FOR DROPDOWN & SEARCH INPUT:
+   Target the raw <select> and <input> tags inside the top container 
+   to completely override Tailwind's aggressive CSS resets.
+*/
+.dataTable-top select,
+.datatable-top select,
+.dataTable-top input,
+.datatable-top input,
+.dataTable-selector,
+.datatable-selector,
+.dataTable-input,
+.datatable-input {
+    background-color: var(--background) !important;
+    color: #ffffff !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 4px !important;
+    padding: 6px 12px !important;
+}
+
+/* Force the options inside the dropdown to be dark so they are readable when clicked */
+.dataTable-top select option,
+.datatable-top select option,
+.dataTable-selector option,
+.datatable-selector option {
+    background-color: var(--card-bg) !important;
+    color: #ffffff !important;
+}
+
+/* Extra right padding on the select box for the browser's default arrow */
+.dataTable-top select,
+.datatable-top select,
+.dataTable-selector,
+.datatable-selector {
+    padding-right: 24px !important;
+}
+
+/* Focus outlines for search and dropdown */
+.dataTable-top select:focus,
+.datatable-top select:focus,
+.dataTable-top input:focus,
+.datatable-top input:focus,
+.dataTable-selector:focus,
+.datatable-selector:focus,
+.dataTable-input:focus,
+.datatable-input:focus {
+    outline: none !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 1px var(--primary) !important;
+}
+
+/* Make search placeholder text visibly distinct from typed text */
+.dataTable-input::placeholder,
+.datatable-input::placeholder {
+    color: var(--text-light) !important;
+}
+
+/* Color the "entries per page" and "Search" label text */
+.dataTable-dropdown label,
+.datatable-dropdown label {
+    color: var(--text-light) !important;
+}
+
+/* Header borders and text */
+.dataTable-table > thead > tr > th,
+.datatable-table > thead > tr > th {
+    border-bottom: 1px solid var(--border) !important;
+    color: var(--text-light) !important;
+}
+
+/* Row borders */
+.dataTable-table > tbody > tr > td,
+.datatable-table > tbody > tr > td {
+    border-bottom: 1px solid var(--border) !important;
+}
+
+/* Sort Arrows */
+.dataTable-sorter::before,
+.dataTable-sorter::after,
+.datatable-sorter::before,
+.datatable-sorter::after {
+    opacity: 0.2 !important;
+}
+.asc .dataTable-sorter::after,
+.desc .dataTable-sorter::before,
+.asc .datatable-sorter::after,
+.desc .datatable-sorter::before {
+    opacity: 0.8 !important;
+}
+
+/* PREVENT OVERLAPPING PAGINATION: Add padding to the bottom of the table container */
+.dataTable-container,
+.datatable-container {
+    padding-bottom: 15px !important;
+}
+
+.dataTable-pagination,
+.datatable-pagination {
+    margin-top: 15px !important;
+}
+
+/* FIX 2: Target BOTH <a> and <button> for pagination links */
+.dataTable-pagination a,
+.datatable-pagination a,
+.dataTable-pagination button,
+.datatable-pagination button {
+    color: var(--text-light) !important;
+    background-color: transparent !important;
+    border-radius: 4px !important;
+    border: none !important; /* Removes default button borders */
+    cursor: pointer;
+    padding: 6px 12px;
+}
+
+/* Hover state for buttons/links */
+.dataTable-pagination a:hover,
+.datatable-pagination a:hover,
+.dataTable-pagination button:hover,
+.datatable-pagination button:hover {
+    background-color: var(--border) !important;
+    color: #ffffff !important;
+}
+
+/* ACTIVE STATE FIX: Handle legacy .active AND modern .datatable-active wrappers */
+.dataTable-pagination .active a, 
+.datatable-pagination .active a, 
+.dataTable-pagination .active button, 
+.datatable-pagination .active button,
+.dataTable-pagination .dataTable-active a, 
+.datatable-pagination .datatable-active a, 
+.dataTable-pagination .dataTable-active button, 
+.datatable-pagination .datatable-active button {
+    background-color: var(--primary) !important;
+    color: #ffffff !important;
+    cursor: default !important;
+}
+
+/* "Showing 1 to 15 of X entries" text */
+.dataTable-info,
+.datatable-info {
+    color: var(--text-light) !important;
+}
+
+/* Hide default marker for details/summary accordions */
+details > summary {
+    list-style: none;
+}
+details > summary::-webkit-details-marker {
+    display: none;
+}

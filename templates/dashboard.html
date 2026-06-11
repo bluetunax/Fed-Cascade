@@ -1,0 +1,353 @@
+<!-- /templates/dashboard.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ state_code }} ({{ year }}) - Fed Cascade{% endblock %}
+
+{% block breadcrumbs %}
+    <a href="/?active_session_id={{ session_id }}" hx-boost="true" hx-indicator="#global-loader" class="hover:text-white transition-colors">📍 State Snapshot</a>
+    <span class="mx-2">/</span>
+    <span class="text-unblue font-medium">{{ state_code }} ({{ year }}) Pipeline</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6 pb-12 relative">
+
+    <!-- Modal Container for Source Profile -->
+    <div id="source-modal-container" class="absolute z-50"></div>
+
+    <!-- API Rate Limit Warning Banner -->
+    {% if api_rate_limited %}
+    <div class="bg-red-900/50 border border-red-500 rounded-lg p-5 mb-6 shadow-lg flex items-start">
+        <div class="text-red-400 text-2xl mr-4 mt-1">⚠️</div>
+        <div>
+            <h3 class="text-red-400 font-bold text-lg mb-1">External API Failure / Rejection</h3>
+            <p class="text-gray-300 text-sm leading-relaxed mb-3">
+                The USAspending API rejected the query or timed out. No new live data was retrieved. 
+                The interface below reflects only what was found in your local offline cache.
+            </p>
+            {% if api_error_message %}
+            <div class="bg-black/50 p-3 rounded border border-red-900/50 font-mono text-xs text-red-300 overflow-x-auto break-words">
+                <span class="text-red-500 font-bold">RAW ERROR:</span> {{ api_error_message }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Header Area -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 border-b border-bordercolor pb-4 gap-4">
+        <div>
+            <h1 class="text-3xl sm:text-4xl font-bold text-white mb-2 flex items-center flex-wrap">
+                <span class="mr-2">{% if state_code == "ALL" or state_code == "GLOBAL" %}🌍{% else %}📍{% endif %}</span> 
+                {% if state_code == "ALL" or state_code == "GLOBAL" %}Global Operations{% else %}{{ state_code }}{% endif %} 
+                
+                <!-- Quick Year Shift UI -->
+                <div class="flex items-center mx-3 bg-[#1a1a1a] border border-gray-800 rounded-lg px-2 py-1 mt-1 sm:mt-0">
+                    <!-- Backwards in time -->
+                    <a href="/cascade?state_code={{ state_code }}&year={{ year - 1 }}&db_filter={{ db_filter }}" 
+                       hx-boost="true" hx-indicator="#global-loader"
+                       class="text-gray-500 hover:text-white hover:bg-gray-800 p-1.5 rounded transition-colors mr-2"
+                       title="Shift to {{ year - 1 }}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </a>
+                    
+                    <span class="text-gray-400 font-mono tracking-widest">{{ year }}</span>
+                    
+                    <!-- Forwards in time (only if we aren't in the future) -->
+                    {% if year < 2025 %}
+                    <a href="/cascade?state_code={{ state_code }}&year={{ year + 1 }}&db_filter={{ db_filter }}" 
+                       hx-boost="true" hx-indicator="#global-loader"
+                       class="text-gray-500 hover:text-white hover:bg-gray-800 p-1.5 rounded transition-colors ml-2"
+                       title="Shift to {{ year + 1 }}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </a>
+                    {% else %}
+                    <div class="w-8 ml-2"></div>
+                    {% endif %}
+                </div>
+            </h1>
+            
+            <p class="text-gray-400 flex items-center mt-2">
+                {% if session_id %}
+                    <span class="text-unblue font-bold bg-unblue/10 px-2 py-0.5 rounded border border-unblue/30 mr-3 text-xs">🔒 LOCKED: {{ session_name }}</span>
+                {% endif %}
+                Tracking Federal Procurement & Assistance
+            </p>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="/?active_session_id={{ session_id }}" hx-boost="true" hx-indicator="#global-loader" 
+               class="text-gray-300 border border-gray-600 hover:bg-[#2d2d2d] hover:text-white font-medium rounded-lg text-sm px-4 py-2 transition-colors">
+                {% if session_id %}← Edit Session{% else %}← New Search{% endif %}
+            </a>
+        </div>
+    </div>
+
+    <!-- UNIVERSAL DATABASE FILTER -->
+    <div class="flex items-center space-x-2 mb-8 bg-darkbg p-1 rounded-lg inline-flex border border-bordercolor">
+        <a href="/cascade?{% if session_id %}session_id={{ session_id }}&{% endif %}state_code={{ state_code }}&year={{ year }}&db_filter=all" hx-boost="true" hx-indicator="#global-loader"
+           class="px-4 py-1.5 text-sm font-medium rounded-md transition-colors
+                  {% if db_filter == 'all' %}bg-gray-700 text-white{% else %}text-gray-400 hover:text-white hover:bg-[#2d2d2d]{% endif %}">
+            Unified Portfolio
+        </a>
+        <a href="/cascade?{% if session_id %}session_id={{ session_id }}&{% endif %}state_code={{ state_code }}&year={{ year }}&db_filter=contracts" hx-boost="true" hx-indicator="#global-loader"
+           class="px-4 py-1.5 text-sm font-medium rounded-md transition-colors
+                  {% if db_filter == 'contracts' %}bg-blue-600 text-white{% else %}text-gray-400 hover:text-white hover:bg-[#2d2d2d]{% endif %}">
+            Contracts Only
+        </a>
+        <a href="/cascade?{% if session_id %}session_id={{ session_id }}&{% endif %}state_code={{ state_code }}&year={{ year }}&db_filter=grants" hx-boost="true" hx-indicator="#global-loader"
+           class="px-4 py-1.5 text-sm font-medium rounded-md transition-colors
+                  {% if db_filter == 'grants' %}bg-purple-600 text-white{% else %}text-gray-400 hover:text-white hover:bg-[#2d2d2d]{% endif %}">
+            Grants/Assistance Only
+        </a>
+    </div>
+
+    <!-- Methodology & API Confidence Section -->
+    <div class="bg-cardbg border-l-4 {% if db_filter == 'contracts' %}border-blue-500{% elif db_filter == 'grants' %}border-purple-500{% else %}border-gray-500{% endif %} p-5 rounded-r-lg text-sm text-gray-300 shadow-md">
+        <strong class="text-white text-base block mb-2">
+            {% if db_filter == 'contracts' %}Contracts Isolation Mode{% elif db_filter == 'grants' %}Grants Isolation Mode{% else %}Federal Pipeline Architecture{% endif %}
+        </strong>
+        <p class="mb-3 leading-relaxed">
+            {% if db_filter == 'contracts' %}
+                Viewing data strictly flagged as <strong>Definitive Contracts, Purchase Orders, etc</strong>. This layer tracks massive macro-financial commitments primarily awarded to major for-profit implementing partners.
+            {% elif db_filter == 'grants' %}
+                Viewing data strictly flagged as <strong>Project Grants, Formula Grants, Direct Payments, etc</strong>. This layer tracks assistance flowing downstream to international NGOs, UN agencies, and foreign governments.
+            {% else %}
+                Data is sourced directly from the USAspending API, tracking both <strong>Contracts</strong> and <strong>Financial Assistance (Grants/Loans)</strong> obligated by the US Government.
+            {% endif %}
+        </p>
+        
+        <div class="mt-4 pt-4 border-t border-bordercolor flex flex-wrap justify-between items-center text-xs">
+            {% if is_offline %}
+                <span class="text-yellow-500 font-bold flex items-center">
+                    <span class="h-2 w-2 rounded-full bg-yellow-500 mr-2 animate-pulse"></span> SYSTEM STATUS: READING FROM LOCAL LEDGER
+                </span>
+                <span class="text-gray-400"><strong class="text-gray-300">Active Database:</strong> Local SQLite Ledger</span>
+                <span class="text-gray-400"><strong class="text-gray-300">Snapshot Captured:</strong> {{ timestamp }}</span>
+            {% else %}
+                <span class="text-green-400 font-bold flex items-center">
+                    <span class="h-2 w-2 rounded-full bg-green-500 mr-2"></span> SYSTEM STATUS: LIVE CONNECTION
+                </span>
+                <span class="text-gray-400">
+                    <strong class="text-gray-300">Active DB:</strong> USAspending.gov
+                </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- The OSINT Bibliography Word Cloud -->
+    {% if bibliography %}
+    <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl mt-6">
+        <h3 class="text-white font-bold mb-3 flex items-center"><span class="mr-2">📊</span> Sector Bibliography</h3>
+        <p class="text-xs text-gray-400 mb-4">Major operational clusters dynamically detected in the raw award descriptions for this search:</p>
+        <div class="flex flex-wrap gap-2">
+            {% for sector, count in bibliography.items() %}
+            <span class="bg-darkbg border border-bordercolor text-gray-300 px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm hover:border-unblue transition-colors cursor-default">
+                {{ sector }} <span class="text-unblue font-bold ml-1">{{ count }}</span>
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Total Volume Banner with YoY -->
+    <div class="mt-6 bg-cardbg border border-bordercolor rounded-xl p-8 shadow-xl text-center flex flex-col justify-center w-full">
+        <h2 class="text-gray-400 font-semibold uppercase tracking-wider text-sm mb-4">Total Obligated Volume</h2>
+        <div class="flex justify-center items-center gap-4">
+            <div class="text-5xl lg:text-6xl font-mono font-bold text-green-400">${{ "{:,.0f}".format(total) }}</div>
+            
+            {% if total_yoy %}
+            <span class="text-lg font-bold px-3 py-1.5 rounded 
+                         {% if '-' in total_yoy %}bg-red-900/30 text-red-400 border border-red-800
+                         {% elif total_yoy == '0%' %}bg-gray-800 text-gray-400 border border-gray-700
+                         {% else %}bg-green-900/30 text-green-400 border border-green-800{% endif %}">
+                {% if '-' in total_yoy %}▼{% elif total_yoy == '0%' %}={% else %}▲{% endif %} {{ total_yoy }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Federal Portfolio Treemap -->
+    <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl mt-6">
+        <h2 class="text-lg font-bold text-white mb-1 flex items-center">
+            <span class="mr-2">🗺️</span> Portfolio Mechanism Treemap
+        </h2>
+        <p class="text-xs text-gray-500 font-mono mb-4">Proportional breakdown of active dataset by <strong>Database Layer → Award Type → Prime Recipient</strong>.</p>
+        {% if chart_json %}
+            <div id="portfolio-treemap" class="w-full rounded-lg overflow-hidden border border-bordercolor"></div>
+            <script>
+                var chartData = {{ chart_json | safe }};
+                Plotly.newPlot('portfolio-treemap', chartData.data, chartData.layout, {responsive: true});
+            </script>
+        {% else %}
+            <div class="py-12 text-center text-gray-500 bg-darkbg rounded-lg border border-dashed border-bordercolor">
+                Not enough valid data to generate portfolio map.
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Section 1: The Macro Layer (Contracts) -->
+    {% if flows %}
+    <div>
+        <h3 class="text-xl font-bold text-white mb-4 mt-8 flex items-center">
+            <span class="bg-unblue text-white text-sm px-2 py-1 rounded mr-3">Step 1</span> 
+            The Macro Layer <span class="text-gray-500 text-base font-normal ml-2">(Prime Contracts)</span>
+        </h3>
+        
+        <div class="rounded-xl border border-bordercolor shadow-xl overflow-hidden bg-cardbg">
+            <table id="macro-table" class="w-full text-sm text-left text-gray-300">
+                <thead class="text-xs text-gray-400 uppercase bg-darkbg">
+                    <tr>
+                        <th scope="col" class="px-6 py-4 w-28">Category</th>
+                        <th scope="col" class="px-6 py-4">Funding Agency</th>
+                        <th scope="col" class="px-6 py-4">Prime Contractor</th>
+                        <th scope="col" class="px-6 py-4 w-40">Mechanism</th>
+                        <th scope="col" class="px-6 py-4 text-right">Amount (USD)</th>
+                        <th scope="col" class="px-6 py-4 text-right w-48">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for flow in flows %}
+                    <tr class="hover:bg-[#2a2a2a] transition-colors relative">
+                        <td class="px-6 py-4 text-xs font-semibold">
+                            <span class="text-blue-400">🏛️ Contract</span>
+                        </td>
+                        <td class="px-6 py-4 font-medium text-white">{{ flow.agency }}</td>
+                        
+                        <td class="px-6 py-4">
+                            <a href="/profile?recipient={{ flow.recipient | urlencode }}&state_code={{ state_code }}&year={{ year }}{% if session_id %}&session_id={{ session_id }}{% endif %}" 
+                               hx-boost="true" hx-indicator="#global-loader"
+                               class="text-unblue font-bold hover:text-blue-400 transition-colors inline-flex items-center">
+                                {{ flow.recipient }} 
+                                <svg class="w-3 h-3 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            </a>
+                        </td>
+
+                        <td class="px-6 py-4">
+                            <span class="bg-blue-900/30 text-blue-300 border border-blue-700/50 text-[10px] px-2 py-1 rounded uppercase tracking-wide truncate max-w-[140px] inline-block align-middle" title="{{ flow.flow_type }}">{{ flow.flow_type }}</span>
+                        </td>
+                        
+                        <td class="px-6 py-4 text-right font-mono text-green-400 font-medium">${{ "{:,.0f}".format(flow.amount_usd) }}</td>
+                        
+                        <td class="px-6 py-4 text-right flex items-center justify-end gap-3">
+                            
+                            <!-- HTMX Exclude Button -->
+                            <form hx-post="/add_exclusion_quick" hx-target="closest tr" hx-swap="outerHTML" class="inline-block m-0 p-0">
+                                <input type="hidden" name="keyword" value="{{ flow.recipient }}">
+                                <input type="hidden" name="rule_type" value="Recipient">
+                                <button type="submit" class="text-gray-500 hover:text-red-500 focus:outline-none transition-colors text-sm" title="Hide this recipient from future scans">
+                                    🚫
+                                </button>
+                            </form>
+
+                            <!-- YoY Trend Link -->
+                            <a href="/pipeline?state_code={{ state_code }}&agency={{ flow.agency | urlencode }}&recipient={{ flow.recipient | urlencode }}&year={{ year }}{% if session_id %}&session_id={{ session_id }}{% endif %}"
+                               hx-boost="true" hx-indicator="#global-loader"
+                               class="inline-block text-[11px] font-bold px-1.5 py-1 rounded cursor-pointer transition-colors w-16 text-center
+                                      {% if '-' in flow.yoy %}bg-red-900/20 text-red-400 hover:bg-red-900/50 border border-transparent hover:border-red-800
+                                      {% elif flow.yoy == '0%' %}bg-gray-800/50 text-gray-400 hover:bg-gray-800 border border-transparent hover:border-gray-600
+                                      {% elif flow.yoy == 'NEW' %}bg-blue-900/20 text-blue-400 hover:bg-blue-900/50 border border-transparent hover:border-blue-800
+                                      {% else %}bg-green-900/20 text-green-400 hover:bg-green-900/50 border border-transparent hover:border-green-800{% endif %}">
+                                {% if '-' in flow.yoy %}▼{% elif flow.yoy == '0%' %}={% elif flow.yoy == 'NEW' %}✨{% else %}▲{% endif %} {{ flow.yoy }}
+                            </a>
+                            
+                            <!-- HTMX Trigger for the Source Profile Modal -->
+                            <button hx-get="/source_profile?state_code={{ state_code }}&agency={{ flow.agency | urlencode }}&recipient={{ flow.recipient | urlencode }}&year={{ year }}&amount={{ flow.amount_usd }}"
+                                    hx-target="#source-modal-container"
+                                    class="text-[10px] uppercase font-mono font-bold text-gray-500 hover:text-white bg-[#1a1a1a] hover:bg-unblue border border-gray-700 hover:border-unblue px-2 py-1 rounded transition-colors"
+                                    title="View Database Record Context">
+                                Source
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Section 2: The Micro Layer (Grants) -->
+    {% if micro_flows %}
+    <div>
+        <h3 class="text-xl font-bold text-white mb-2 mt-12 flex items-center">
+            <span class="bg-unblue text-white text-sm px-2 py-1 rounded mr-3">Step 2</span> 
+            The Micro Layer <span class="text-gray-500 text-base font-normal ml-2">(Grants & Assistance)</span>
+        </h3>
+        <p class="text-gray-400 text-sm mb-4">Click an implementing partner to view a ledger of their specific project activities.</p>
+        
+        <div class="rounded-xl border border-bordercolor shadow-xl overflow-hidden bg-cardbg">
+            <table id="micro-table" class="w-full text-sm text-left text-gray-300">
+                <thead class="text-xs text-gray-400 uppercase bg-darkbg">
+                    <tr>
+                        <th scope="col" class="px-6 py-4 w-28">Category</th>
+                        <th scope="col" class="px-6 py-4">Funding Agency</th>
+                        <th scope="col" class="px-6 py-4">Grantee / Recipient</th>
+                        <th scope="col" class="px-6 py-4 w-40">Mechanism</th>
+                        <th scope="col" class="px-6 py-4 text-right">Amount (USD)</th>
+                        <th scope="col" class="px-6 py-4 text-right w-48">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for flow in micro_flows %}
+                    <tr class="hover:bg-[#2a2a2a] transition-colors relative">
+                        <td class="px-6 py-4 text-xs font-semibold">
+                            <span class="text-purple-400">📄 Grant</span>
+                        </td>
+                        <td class="px-6 py-4 font-medium text-white">{{ flow.agency }}</td>
+                        
+                        <td class="px-6 py-4">
+                            <a href="/profile?recipient={{ flow.recipient | urlencode }}&state_code={{ state_code }}&year={{ year }}{% if session_id %}&session_id={{ session_id }}{% endif %}" 
+                               hx-boost="true" hx-indicator="#global-loader"
+                               class="text-purple-400 font-bold hover:text-purple-300 transition-colors inline-flex items-center">
+                                {{ flow.recipient }} 
+                                <svg class="w-3 h-3 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            </a>
+                        </td>
+
+                        <td class="px-6 py-4">
+                            <span class="bg-purple-900/30 text-purple-300 border border-purple-700/50 text-[10px] px-2 py-1 rounded uppercase tracking-wide truncate max-w-[140px] inline-block align-middle" title="{{ flow.flow_type }}">{{ flow.flow_type }}</span>
+                        </td>
+                        
+                        <td class="px-6 py-4 text-right font-mono text-green-400 font-medium">${{ "{:,.0f}".format(flow.amount_usd) }}</td>
+                        
+                        <td class="px-6 py-4 text-right flex items-center justify-end gap-3">
+                            
+                            <!-- HTMX Exclude Button -->
+                            <form hx-post="/add_exclusion_quick" hx-target="closest tr" hx-swap="outerHTML" class="inline-block m-0 p-0">
+                                <input type="hidden" name="keyword" value="{{ flow.recipient }}">
+                                <input type="hidden" name="rule_type" value="Recipient">
+                                <button type="submit" class="text-gray-500 hover:text-red-500 focus:outline-none transition-colors text-sm" title="Hide this recipient from future scans">
+                                    🚫
+                                </button>
+                            </form>
+
+                            <!-- YoY Trend Link -->
+                            <a href="/pipeline?state_code={{ state_code }}&agency={{ flow.agency | urlencode }}&recipient={{ flow.recipient | urlencode }}&year={{ year }}{% if session_id %}&session_id={{ session_id }}{% endif %}"
+                               hx-boost="true" hx-indicator="#global-loader"
+                               class="inline-block text-[11px] font-bold px-1.5 py-1 rounded cursor-pointer transition-colors w-16 text-center
+                                      {% if '-' in flow.yoy %}bg-red-900/20 text-red-400 hover:bg-red-900/50 border border-transparent hover:border-red-800
+                                      {% elif flow.yoy == '0%' %}bg-gray-800/50 text-gray-400 hover:bg-gray-800 border border-transparent hover:border-gray-600
+                                      {% elif flow.yoy == 'NEW' %}bg-blue-900/20 text-blue-400 hover:bg-blue-900/50 border border-transparent hover:border-blue-800
+                                      {% else %}bg-green-900/20 text-green-400 hover:bg-green-900/50 border border-transparent hover:border-green-800{% endif %}">
+                                {% if '-' in flow.yoy %}▼{% elif flow.yoy == '0%' %}={% elif flow.yoy == 'NEW' %}✨{% else %}▲{% endif %} {{ flow.yoy }}
+                            </a>
+                            
+                            <!-- HTMX Trigger for the Source Profile Modal -->
+                            <button hx-get="/source_profile?state_code={{ state_code }}&agency={{ flow.agency | urlencode }}&recipient={{ flow.recipient | urlencode }}&year={{ year }}&amount={{ flow.amount_usd }}"
+                                    hx-target="#source-modal-container"
+                                    class="text-[10px] uppercase font-mono font-bold text-gray-500 hover:text-white bg-[#1a1a1a] hover:bg-unblue border border-gray-700 hover:border-unblue px-2 py-1 rounded transition-colors"
+                                    title="View Database Record Context">
+                                Source
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

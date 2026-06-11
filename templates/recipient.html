@@ -1,0 +1,411 @@
+<!-- /templates/recipient.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ recipient }} - Fed Cascade Pro{% endblock %}
+
+{% block breadcrumbs %}
+    {% if tab == 'context' %}
+        <a href="/" hx-boost="true" hx-indicator="#global-loader" class="hover:text-white transition-colors">📍 State Snapshot</a>
+        <span class="mx-2">/</span>
+        <a href="/cascade?session_id={{ session_id }}&state_code={{ state_code }}&year={{ year }}" hx-boost="true" hx-indicator="#global-loader" class="hover:text-white transition-colors">{{ state_code }} ({{ year }}) Pipeline</a>
+        <span class="mx-2">/</span>
+        <span class="text-unblue font-medium">{{ recipient }}</span>
+    {% else %}
+        <a href="/bibliography" hx-boost="true" hx-indicator="#global-loader" class="hover:text-white transition-colors">🗄️ Global Bibliography</a>
+        <span class="mx-2">/</span>
+        <span class="text-purple-400 font-medium">Dossier: {{ recipient }}</span>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6 pb-12 relative">
+
+    <div id="toast-container" class="fixed top-4 right-4 z-50"></div>
+
+    <!-- Header Area -->
+    <div class="flex flex-col md:flex-row md:justify-between md:items-end mb-4 border-b border-bordercolor pb-4 gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-white mb-2 flex items-center">
+                <span class="mr-3 {% if tab == 'context' %}text-unblue{% else %}text-purple-400{% endif %}">🏢</span> {{ recipient }}
+            </h1>
+            <p class="text-gray-400">Recipient Profile</p>
+        </div>
+        
+        <!-- Back Navigation Logic -->
+        {% if tab == 'context' %}
+        <a href="/cascade?session_id={{ session_id }}&state_code={{ state_code }}&year={{ year }}" hx-boost="true" hx-indicator="#global-loader" 
+           class="text-gray-300 border border-gray-600 hover:bg-[#2d2d2d] hover:text-white font-medium rounded-lg text-sm px-4 py-2 transition-colors">
+            ← Back to Dashboard
+        </a>
+        {% else %}
+        <a href="/bibliography" hx-boost="true" hx-indicator="#global-loader" 
+           class="text-gray-300 border border-gray-600 hover:bg-[#2d2d2d] hover:text-white font-medium rounded-lg text-sm px-4 py-2 transition-colors">
+            ← Back to Bibliography
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- TAB NAVIGATION -->
+    <div class="flex items-center space-x-2 mb-6 bg-darkbg p-1 rounded-lg inline-flex border border-bordercolor">
+        {% if state_code != "ALL" and state_code != "GLOBAL" %}
+        <a href="/profile?recipient={{ recipient|urlencode }}&state_code={{ state_code }}&year={{ year }}&session_id={{ session_id }}&tab=context" 
+           hx-boost="true" hx-indicator="#global-loader"
+           class="px-5 py-2 text-sm font-bold rounded-md transition-colors flex items-center
+                  {% if tab == 'context' %}bg-blue-600 text-white shadow-md{% else %}text-gray-400 hover:text-white hover:bg-[#2d2d2d]{% endif %}">
+            <span class="mr-2">📡</span> Active Context
+        </a>
+        {% endif %}
+        
+        <a href="/profile?recipient={{ recipient|urlencode }}&state_code={{ state_code }}&year={{ year }}&session_id={{ session_id }}&tab=dossier" 
+           hx-boost="true" hx-indicator="#global-loader"
+           class="px-5 py-2 text-sm font-bold rounded-md transition-colors flex items-center
+                  {% if tab == 'dossier' %}bg-purple-600 text-white shadow-md{% else %}text-gray-400 hover:text-white hover:bg-[#2d2d2d]{% endif %}">
+            <span class="mr-2">🗄️</span> Global Dossier
+        </a>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 1: ACTIVE CONTEXT (Live API Pull) -->
+    <!-- ========================================== -->
+    {% if tab == 'context' %}
+    
+    <div class="bg-cardbg border-l-4 border-unblue p-5 rounded-r-lg text-sm text-gray-300 shadow-md">
+        <strong class="text-white text-base block mb-2">Live Context Mode</strong>
+        <p class="mb-3 leading-relaxed">
+            Showing downstream project-level allocations matching the recipient name <strong class="text-white">"{{ recipient }}"</strong> 
+            specifically for <strong>{{ state_code }}</strong> in <strong>{{ year }}</strong>.
+        </p>
+        
+        <div class="mt-4 pt-4 border-t border-bordercolor flex flex-wrap justify-between items-center text-xs">
+            <span class="text-green-400 font-bold flex items-center">
+                <span class="h-2 w-2 rounded-full bg-green-500 mr-2"></span> SYSTEM STATUS: LIVE CONNECTION
+            </span>
+            <span class="text-gray-400"><strong class="text-gray-300">Active Database:</strong> USAspending.gov API v2</span>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <div class="md:col-span-2 bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl">
+            <h3 class="text-gray-400 font-semibold uppercase tracking-wider text-sm mb-4">Adjust Context Parameters</h3>
+            <form action="/profile" method="GET" hx-boost="true" hx-indicator="#global-loader" class="flex flex-wrap items-end gap-4">
+                <input type="hidden" name="recipient" value="{{ recipient }}">
+                <input type="hidden" name="tab" value="context">
+                {% if session_id %}<input type="hidden" name="session_id" value="{{ session_id }}">{% endif %}
+                
+                <div>
+                    <label for="state_code" class="block text-xs font-semibold text-gray-400 mb-1">State (ISO-2):</label>
+                    <input type="text" id="state_code" name="state_code" value="{{ state_code }}" required maxlength="2"
+                           class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-32 p-2.5 transition-colors uppercase">
+                </div>
+                
+                <div>
+                    <label for="year" class="block text-xs font-semibold text-gray-400 mb-1">Fiscal Year:</label>
+                    <input type="number" id="year" name="year" value="{{ year }}" required min="2000" max="2025" 
+                           class="bg-darkbg border border-bordercolor text-white text-sm rounded-lg focus:ring-unblue focus:border-unblue block w-32 p-2.5 transition-colors">
+                </div>
+                
+                <button type="submit" class="text-white bg-unblue hover:bg-blue-600 focus:ring-4 font-medium rounded-lg text-sm px-4 py-2.5 transition-colors">
+                    Update Ledger
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center flex flex-col justify-center">
+            <h2 class="text-gray-400 font-semibold uppercase tracking-wider text-sm mb-2">Total Obligated ({{ year }})</h2>
+            <div class="text-3xl lg:text-4xl font-mono font-bold text-green-400">${{ "{:,.0f}".format(total) }}</div>
+        </div>
+    </div>
+
+    <div class="mt-8">
+        <h3 class="text-xl font-bold text-white mb-4">Specific Award Activities</h3>
+        
+        {% if activities %}
+        <div class="rounded-xl border border-bordercolor shadow-xl overflow-hidden bg-cardbg">
+            <table id="recipient-activities-table" class="w-full text-sm text-left text-gray-300 table-fixed">
+                <thead class="text-xs text-gray-400 uppercase bg-darkbg">
+                    <tr>
+                        <th scope="col" class="px-6 py-4 w-28">Action Date</th>
+                        <th scope="col" class="px-6 py-4 w-40">Funding Agency</th>
+                        <th scope="col" class="px-6 py-4">Award ID & Description</th>
+                        <th scope="col" class="px-6 py-4 text-right w-32">Amount (USD)</th>
+                        <th scope="col" class="px-6 py-4 text-center w-28">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in activities %}
+                    <tr class="hover:bg-[#2a2a2a] transition-colors">
+                        <td class="px-6 py-4 text-gray-400 text-xs font-mono">{{ act.date }}</td>
+                        <td class="px-6 py-4">
+                            <span class="bg-[#2d2d2d] text-gray-200 text-xs font-semibold px-2.5 py-1 rounded block w-fit truncate max-w-full" title="{{ act.agency }}">{{ act.agency }}</span>
+                        </td>
+                        
+                        <td class="px-6 py-4 overflow-hidden">
+                            <details class="group cursor-pointer w-full">
+                                <summary class="text-white font-medium hover:text-unblue transition-colors flex items-center outline-none min-w-0 w-full">
+                                    <svg class="w-4 h-4 mr-1.5 text-gray-500 group-open:rotate-90 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                    
+                                    <!-- The Award ID stays visible -->
+                                    <span class="font-mono text-unblue mr-2 shrink-0">{{ act.project }}</span>
+                                    
+                                    <!-- The truncated preview of the description -->
+                                    <span class="text-gray-500 text-xs font-normal truncate flex-1">
+                                        - {{ act.description | default('No description provided', true) }}
+                                    </span>
+                                </summary>
+                                <div class="text-xs text-gray-300 leading-relaxed mt-3 pl-5 pb-2 border-l-2 border-gray-700 ml-2">
+                                    {{ act.description }}
+                                </div>
+                            </details>
+                        </td>
+                        
+                        <td class="px-6 py-4 text-right font-mono text-green-400 font-medium">${{ "{:,.0f}".format(act.amount) }}</td>
+                        
+                        <!-- THE ACTIONS COLUMN (Star + Hide Button side-by-side) -->
+                        <td class="px-6 py-4 text-center">
+                            <div class="flex items-center justify-center space-x-4">
+                                
+                                <!-- HTMX Exclude Button for Award Descriptions -->
+                                <form hx-post="/add_exclusion_quick" hx-target="closest tr" hx-swap="outerHTML" class="inline-block m-0 p-0">
+                                    <input type="hidden" name="keyword" value="{{ act.project }}">
+                                    <input type="hidden" name="rule_type" value="Description">
+                                    <button type="submit" class="text-gray-600 hover:text-red-500 focus:outline-none transition-colors text-sm" title="Hide this specific award from future scans">
+                                        🚫
+                                    </button>
+                                </form>
+
+                                <!-- The Pin Button -->
+                                <div class="inline-block pin-container m-0 p-0">
+                                    <input type="hidden" name="source_record_id" value="{{ act.source_record_id }}">
+                                    <input type="hidden" name="year" value="{{ year }}">
+                                    <input type="hidden" name="agency" value="{{ act.agency }}">
+                                    <input type="hidden" name="recipient" value="{{ recipient }}">
+                                    <input type="hidden" name="project" value="{{ act.project }}">
+                                    <input type="hidden" name="description" value="{{ act.description }}">
+                                    <input type="hidden" name="amount" value="{{ act.amount }}">
+                                    <input type="hidden" name="state_code" value="{{ state_code }}">
+                                    
+                                    <button type="button" 
+                                            hx-post="/toggle_pin" 
+                                            hx-include="closest .pin-container" 
+                                            hx-target="closest .pin-container"
+                                            hx-swap="outerHTML"
+                                            class="text-gray-500 hover:text-yellow-400 text-lg transition-colors focus:outline-none leading-none block" 
+                                            title="Pin to profile">
+                                        ☆
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="bg-cardbg border border-dashed border-bordercolor rounded-xl p-12 text-center shadow-sm">
+            <span class="text-4xl mb-4 block">📭</span>
+            <p class="text-lg text-white font-medium mb-2">No specific award descriptions found</p>
+            <p class="text-gray-400 text-sm max-w-lg mx-auto">
+                Could not locate activity records for <strong>{{ recipient }}</strong> in {{ state_code }} for {{ year }}.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: GLOBAL DOSSIER (Offline DB Scan) -->
+    <!-- ========================================== -->
+    {% elif tab == 'dossier' %}
+
+    <div class="bg-[#0a0a0a] border-l-4 border-purple-600 p-5 rounded-r-lg text-sm text-gray-300 shadow-md">
+        <strong class="text-white text-base block mb-2 font-mono uppercase tracking-widest">Offline Intelligence Dossier</strong>
+        <p class="mb-3 leading-relaxed">
+            Scanning local cache for all references to <strong class="text-white">"{{ dossier.recipient_name }}"</strong> across all years and states. This view automatically aggregates contract pipeline flows and award descriptions captured during previous intelligence sweeps.
+        </p>
+        
+        <div class="mt-4 pt-4 border-t border-gray-800 flex flex-wrap justify-between items-center text-xs font-mono">
+            <span class="text-yellow-500 font-bold flex items-center">
+                <span class="h-2 w-2 rounded-full bg-yellow-500 mr-2 animate-pulse"></span> SYSTEM STATUS: OFFLINE SCAN
+            </span>
+            <span class="text-gray-400"><strong class="text-gray-300">Database:</strong> Local Cache</span>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6">
+        
+        <div class="md:col-span-1 space-y-6">
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center">
+                <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">Captured Volume</h2>
+                <div class="text-2xl font-mono font-bold text-green-400">${{ "{:,.0f}".format(dossier.captured_volume) }}</div>
+            </div>
+
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl">
+                <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-4">Known Operational Zones</h2>
+                {% if dossier.operating_zones %}
+                <div class="flex flex-wrap gap-2">
+                    {% for z in dossier.operating_zones %}
+                    <span class="bg-purple-900/40 text-purple-300 border border-purple-700/50 text-[10px] font-mono px-2 py-1 rounded">📍 {{ z }}</span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <span class="text-xs text-gray-500 font-mono">Insufficient data</span>
+                {% endif %}
+            </div>
+
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl">
+                <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-4">Known Funding Agencies</h2>
+                {% if dossier.known_agencies %}
+                <div class="space-y-2">
+                    {% for agency in dossier.known_agencies %}
+                    <div class="text-xs text-gray-300 bg-[#2d2d2d] px-2 py-1 rounded">{{ agency }}</div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <span class="text-xs text-gray-500 font-mono">Insufficient data</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="md:col-span-3 space-y-8">
+            
+            {% if dossier.flows %}
+            <div>
+                <h3 class="text-lg font-bold text-white mb-3 font-mono uppercase tracking-widest flex items-center">
+                    <span class="mr-2 text-purple-400">💸</span> Discovered Flow Ledger
+                </h3>
+                <div class="rounded-xl border border-bordercolor shadow-xl overflow-hidden bg-cardbg">
+                    <table id="dossier-flows-table" class="w-full text-sm text-left text-gray-300">
+                        <thead class="text-xs text-gray-500 uppercase bg-[#0f0f0f] font-mono">
+                            <tr>
+                                <th scope="col" class="px-5 py-3 w-24">Year</th>
+                                <th scope="col" class="px-5 py-3 w-24">Zone</th>
+                                <th scope="col" class="px-5 py-3">Funding Agency</th>
+                                <th scope="col" class="px-5 py-3 text-right">Captured Amt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in dossier.flows %}
+                            <tr class="hover:bg-[#1a1a1a] transition-colors border-b border-gray-800 last:border-0">
+                                <td class="px-5 py-3 font-mono text-gray-400">{{ f.year }}</td>
+                                <td class="px-5 py-3 font-mono text-gray-400">{{ f.state_code }}</td>
+                                <td class="px-5 py-3 font-medium text-white">{{ f.agency }}</td>
+                                <td class="px-5 py-3 text-right font-mono text-green-400">${{ "{:,.0f}".format(f.amount) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if dossier.projects %}
+            <div>
+                <h3 class="text-lg font-bold text-white mb-3 font-mono uppercase tracking-widest flex items-center">
+                    <span class="mr-2 text-purple-400">📄</span> Captured Award Intelligence
+                </h3>
+                <div class="rounded-xl border border-bordercolor shadow-xl overflow-hidden bg-cardbg">
+                    <table id="dossier-projects-table" class="w-full text-sm text-left text-gray-300 table-fixed">
+                        <thead class="text-xs text-gray-500 uppercase bg-[#0f0f0f] font-mono">
+                            <tr>
+                                <th scope="col" class="px-5 py-3 w-24">Zone</th>
+                                <th scope="col" class="px-5 py-3 w-32">Action Date</th>
+                                <th scope="col" class="px-5 py-3">Award ID & Description</th>
+                                <th scope="col" class="px-5 py-3 text-right w-32">Amt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in dossier.projects %}
+                            <tr class="hover:bg-[#1a1a1a] transition-colors border-b border-gray-800 last:border-0">
+                                <td class="px-5 py-4 font-mono text-gray-400">{{ p.state_code }}</td>
+                                <td class="px-5 py-4 text-xs font-mono text-gray-500">{{ p.date }}</td>
+                                
+                                <td class="px-5 py-4 overflow-hidden">
+                                    <details class="group cursor-pointer w-full">
+                                        <summary class="text-white font-medium hover:text-purple-400 transition-colors flex items-center outline-none min-w-0 w-full">
+                                            <svg class="w-4 h-4 mr-1.5 text-gray-600 group-open:rotate-90 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                            
+                                            <!-- Award ID -->
+                                            <span class="font-mono text-purple-400 mr-2 shrink-0">{{ p.project }}</span>
+                                            
+                                            <!-- Truncated snippet -->
+                                            <span class="text-gray-500 text-xs font-normal truncate flex-1">
+                                                - {{ p.description | default('No description provided', true) }}
+                                            </span>
+                                        </summary>
+                                        <div class="text-xs text-gray-400 leading-relaxed mt-3 pl-5 pb-2 border-l-2 border-gray-700 ml-2">
+                                            {{ p.description }}
+                                            <div class="mt-2 text-[10px] font-mono text-gray-600">AGENCY: {{ p.agency }}</div>
+                                            
+                                            <!-- Exclude Button moved inside details for cleaner UI in Dossier -->
+                                            <form hx-post="/add_exclusion_quick" hx-target="closest tr" hx-swap="outerHTML" class="mt-3 block">
+                                                <input type="hidden" name="keyword" value="{{ p.project }}">
+                                                <input type="hidden" name="rule_type" value="Description">
+                                                <button type="submit" class="text-gray-500 hover:text-red-400 bg-[#1a1a1a] hover:bg-red-900/20 border border-gray-700 hover:border-red-800/50 px-2 py-1 rounded transition-colors text-[10px] uppercase tracking-widest flex items-center" title="Hide this award">
+                                                    <span class="mr-1.5">🚫</span> Hide from future scans
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </details>
+                                </td>
+                                
+                                <td class="px-5 py-4 text-right font-mono text-green-400">${{ "{:,.0f}".format(p.amount) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if not dossier.flows and not dossier.projects %}
+            <div id="empty-state-box" class="bg-[#111] border border-dashed border-gray-800 rounded-xl p-8 shadow-inner relative flex flex-col justify-center items-center min-h-[400px]">
+                <div class="text-center mb-8">
+                    <span class="text-5xl mb-4 block">📭</span>
+                    <p class="text-xl text-white font-medium mb-2 uppercase tracking-widest font-mono">No intelligence on file</p>
+                    <p class="text-gray-500 text-sm font-mono max-w-lg mx-auto">
+                        The local cache has not captured any historical context for <strong>{{ dossier.recipient_name }}</strong> yet.
+                    </p>
+                </div>
+                
+                <div class="bg-cardbg border border-gray-800 rounded-lg p-6 w-full max-w-md shadow-2xl relative overflow-hidden text-center">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-purple-600"></div>
+
+                    <h3 class="text-purple-400 font-mono text-xs uppercase tracking-widest font-bold mb-3 flex items-center justify-center mt-2">
+                        <span class="mr-2">⚡</span> Execute National Ingestion
+                    </h3>
+                    <p class="text-sm text-gray-400 mb-6 leading-relaxed">
+                        To populate this dossier, run a <strong>Global Multi-Year Timeline</strong>. This will ingest national data into your offline cache, allowing the system to profile this entity.
+                    </p>
+                    
+                    <a href="/timeline?state_code=ALL&start_year=2020&end_year=2024&db_filter=all" 
+                       hx-boost="true" hx-indicator="#global-loader"
+                       class="inline-block w-full bg-purple-600 hover:bg-purple-500 text-white font-bold font-mono uppercase tracking-widest text-xs py-3 rounded transition-colors shadow-lg">
+                        Go to Timeline Engine
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+    function initRecipientTables() {
+        if (document.getElementById("recipient-activities-table")) {
+            new VanillaTable("#recipient-activities-table", { perPage: 15 });
+        }
+        if (document.getElementById("dossier-flows-table")) {
+            new VanillaTable("#dossier-flows-table", { perPage: 10 });
+        }
+        if (document.getElementById("dossier-projects-table")) {
+            new VanillaTable("#dossier-projects-table", { perPage: 10 });
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", initRecipientTables);
+    document.body.addEventListener('htmx:afterSwap', initRecipientTables);
+</script>
+{% endblock %}

@@ -1,0 +1,159 @@
+<!-- /templates/watchdog_report.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Report - Fed Cascade</title>
+    
+    <!-- We still use Tailwind, but force standard white background/black text for printing -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* Print-specific CSS */
+        @media print {
+            body { background-color: white; color: black; }
+            .no-print { display: none !important; }
+            .page-break { page-break-before: always; }
+            /* Ensure the browser prints background colors (useful for the alternating row shading) */
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+        body { background-color: #f9fafb; color: #111827; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+        .report-container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); min-height: 100vh; }
+    </style>
+</head>
+<body>
+
+    <!-- On-screen controls (Hidden when printed) -->
+    <div class="no-print bg-gray-800 text-white p-4 flex justify-between items-center fixed top-0 w-full shadow-md z-50">
+        <div class="text-sm font-mono tracking-widest uppercase">Printable Audit Report</div>
+        <div class="space-x-4">
+            <button onclick="window.close()" class="text-gray-300 hover:text-white px-4 py-2 text-sm transition-colors">Close Tab</button>
+            <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded text-sm font-bold shadow transition-colors">Print / Save as PDF</button>
+        </div>
+    </div>
+
+    <!-- Add margin-top to clear the fixed banner when viewing on screen -->
+    <div class="report-container mt-16 print:mt-0">
+        
+        <!-- Report Header -->
+        <div class="border-b-2 border-black pb-6 mb-8 text-center">
+            <h1 class="text-3xl font-bold uppercase tracking-widest mb-2">Fed Cascade</h1>
+            <h2 class="text-xl font-medium text-gray-700 tracking-wider">Financial Volatility Audit Report</h2>
+            <div class="mt-4 text-sm text-gray-500 font-mono flex justify-center space-x-6">
+                <span><strong>GENERATED:</strong> {{ report_date }}</span>
+                <span><strong>TARGET ZONE:</strong> {{ state_code }}</span>
+            </div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="mb-10">
+            <h3 class="text-lg font-bold border-b border-gray-300 pb-2 mb-4 uppercase">Executive Summary</h3>
+            <p class="text-sm leading-relaxed mb-4">
+                This report details detected discrepancies between historical baseline snapshots and subsequent live queries of official federal spending databases (USAspending.gov). 
+            </p>
+            
+            <div class="grid grid-cols-2 gap-4 border border-gray-300 p-4 bg-gray-50">
+                <div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wider font-bold">Total Absolute Volatility</div>
+                    <div class="text-2xl font-mono font-bold">${{ "{:,.0f}".format(total_volatility) }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wider font-bold">Detected Anomalies</div>
+                    <div class="text-2xl font-mono font-bold">{{ report_data|length }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wider font-bold">Impact Filter</div>
+                    <div class="text-sm font-mono mt-1">{{ impact }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 uppercase tracking-wider font-bold">Retroactive Filter</div>
+                    <div class="text-sm font-mono mt-1">{{ retroactive }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Ledger -->
+        <div>
+            <h3 class="text-lg font-bold border-b border-gray-300 pb-2 mb-6 uppercase">Detailed Audit Log</h3>
+            
+            {% if report_data %}
+                <div class="space-y-8">
+                    {% for item in report_data %}
+                    <div class="border border-gray-300 rounded p-4 {% if loop.index % 2 == 0 %}bg-gray-50{% else %}bg-white{% endif %}">
+                        
+                        <!-- Header of Record -->
+                        <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
+                            <div class="font-bold text-lg flex items-center">
+                                <span class="bg-black text-white px-2 py-0.5 rounded text-sm mr-3 font-mono">{{ loop.index }}</span>
+                                {{ item.change.change_type }}
+                            </div>
+                            
+                            <!-- Badges -->
+                            <div class="flex space-x-2">
+                                {% if item.change.impact_level == 'HIGH' %}
+                                    <span class="border border-black px-2 py-0.5 text-xs font-bold uppercase tracking-widest">High Impact</span>
+                                {% endif %}
+                                {% if item.change.is_retroactive %}
+                                    <span class="border border-black px-2 py-0.5 text-xs font-bold uppercase tracking-widest">Retroactive</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Data Grid -->
+                        <div class="grid grid-cols-2 gap-y-4 text-sm">
+                            
+                            <!-- FIXED: was item.change.donor / item.change.country_code (fields don't exist on LedgerChange; rendered blank) -->
+                            <div class="col-span-2">
+                                <div class="text-xs text-gray-500 font-bold uppercase mb-1">Pipeline Route ({{ item.change.source_database }})</div>
+                                <div class="font-medium">{{ item.change.agency }} <span class="mx-2">→</span> {{ item.change.recipient }}</div>
+                                <div class="text-xs mt-1">Target Zone: {{ item.change.state_code }} (FY {{ item.change.year }})</div>
+                                <div class="text-xs mt-1 text-gray-500">Discrepancy Detected: {{ item.change.detected_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</div>
+                            </div>
+
+                            <!-- Base vs Compare -->
+                            <div class="border-t border-gray-200 pt-3">
+                                <div class="text-xs text-gray-500 font-bold uppercase mb-1">Original Baseline Record</div>
+                                <div class="font-mono text-gray-700 text-xs mb-1">{{ item.base_session.timestamp.strftime('%Y-%m-%d') }}</div>
+                                <div class="font-mono font-bold">${{ "{:,.0f}".format(item.change.old_amount) }}</div>
+                            </div>
+
+                            <div class="border-t border-gray-200 pt-3">
+                                <div class="text-xs text-gray-500 font-bold uppercase mb-1">New Live Record</div>
+                                <div class="font-mono text-gray-700 text-xs mb-1">{{ item.compare_session.timestamp.strftime('%Y-%m-%d') }}</div>
+                                <div class="font-mono font-bold">${{ "{:,.0f}".format(item.change.new_amount) }}</div>
+                            </div>
+
+                            <!-- Delta Full Width -->
+                            <div class="col-span-2 border-t border-gray-200 pt-3">
+                                <div class="flex justify-between items-center bg-gray-200 p-2 rounded">
+                                    <span class="text-xs font-bold uppercase tracking-widest">Calculated Discrepancy (Delta)</span>
+                                    <span class="font-mono font-bold text-base {% if item.change.delta_usd < 0 %}text-red-700{% endif %}">
+                                        {% if item.change.delta_usd > 0 %}+{% endif %}${{ "{:,.0f}".format(item.change.delta_usd) }}
+                                        <span class="text-xs ml-2 text-gray-600 font-normal">({% if item.change.delta_percent > 0 %}+{% endif %}{{ "{:,.1f}".format(item.change.delta_percent) }}%)</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center italic text-gray-500 py-10">No discrepancies match the specified report criteria.</div>
+            {% endif %}
+        </div>
+        
+        <!-- Footer -->
+        <div class="mt-12 pt-4 border-t border-gray-300 text-center text-xs text-gray-500 font-mono">
+            END OF REPORT
+        </div>
+
+    </div>
+
+    <script>
+        // Optional: Automatically open print dialog slightly after page loads
+        // setTimeout(() => { window.print(); }, 1000);
+    </script>
+</body>
+</html>

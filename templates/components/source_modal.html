@@ -1,0 +1,119 @@
+<!-- /templates/components/source_modal.html -->
+<div id="source-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    
+    <!-- Dark transparent backdrop. Clicking it triggers the fade-out animation and removes the modal. -->
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity" aria-hidden="true" 
+         onclick="closeSourceModal()"></div>
+
+    <!-- Modal Panel -->
+    <div class="relative transform overflow-hidden rounded-xl bg-cardbg text-left shadow-2xl transition-all w-full max-w-xl border border-bordercolor shadow-[0_0_50px_rgba(0,0,0,0.5)] opacity-0 scale-95 duration-200 flex flex-col" id="source-modal-panel">
+        
+        <!-- Header -->
+        <div class="bg-[#0f0f0f] px-6 py-4 border-b border-bordercolor flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <span class="bg-blue-900/30 text-blue-400 border border-blue-800 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-widest font-mono">
+                    System Record
+                </span>
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white" id="modal-title">Raw Ledger Data</h3>
+            </div>
+            
+            <button type="button" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-fedblue" onclick="closeSourceModal()">
+                <span class="sr-only">Close panel</span>
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Body: Raw Data Properties -->
+        <div class="p-6 bg-cardbg overflow-y-auto max-h-[70vh]">
+            <div class="bg-darkbg border border-bordercolor rounded-lg p-1 font-mono text-sm shadow-inner">
+                <table class="w-full text-left border-collapse">
+                    <tbody class="divide-y divide-gray-800/50">
+                        <tr class="hover:bg-[#1a1a1a] transition-colors">
+                            <td class="py-2.5 px-4 text-gray-500 w-1/3">Record ID</td>
+                            <td class="py-2.5 px-4 text-purple-400 break-all">{{ record.source_record_id if record.source_record_id else 'MEMORY_VOLATILE' }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a1a1a] transition-colors">
+                            <td class="py-2.5 px-4 text-gray-500">Source DB</td>
+                            <td class="py-2.5 px-4 text-gray-300">{{ record.source_database }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a1a1a] transition-colors">
+                            <td class="py-2.5 px-4 text-gray-500">Target Zone</td>
+                            <td class="py-2.5 px-4 text-gray-300">ISO-3: {{ record.state_code }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a1a1a] transition-colors">
+                            <td class="py-2.5 px-4 text-gray-500">Fiscal Year</td>
+                            <td class="py-2.5 px-4 text-gray-300">{{ record.year }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a1a1a] transition-colors">
+                            <td class="py-2.5 px-4 text-gray-500 align-top">Funding Agency</td>
+                            <td class="py-2.5 px-4 text-white font-semibold">{{ record.agency }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a1a1a] transition-colors">
+                            <td class="py-2.5 px-4 text-gray-500 align-top">Recipient Entity</td>
+                            <td class="py-2.5 px-4 text-white font-semibold">{{ record.recipient }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a1a1a] transition-colors">
+                            <td class="py-2.5 px-4 text-gray-500">Pipeline Layer</td>
+                            <td class="py-2.5 px-4 text-blue-400">{{ record.layer }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a1a1a] transition-colors">
+                            <td class="py-2.5 px-4 text-gray-500">Flow Type</td>
+                            <td class="py-2.5 px-4 text-gray-300">{{ record.flow_type }}</td>
+                        </tr>
+                        <tr class="hover:bg-[#1a1a1a] transition-colors">
+                            <td class="py-2.5 px-4 text-gray-500">Small Business Status</td>
+                            <td class="py-2.5 px-4 text-gray-300">{{ "TRUE" if record.is_small_biz else "FALSE" }}</td>
+                        </tr>
+                        <tr class="bg-gray-900/30">
+                            <td class="py-3 px-4 text-gray-400 font-bold uppercase tracking-widest border-t border-gray-700">Committed Amount</td>
+                            <td class="py-3 px-4 text-green-400 font-bold text-lg border-t border-gray-700">${{ "{:,.2f}".format(record.amount_usd) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="bg-[#0f0f0f] px-6 py-3 border-t border-bordercolor text-[10px] text-gray-500 font-mono flex justify-between items-center">
+            <span>VERIFIED BY FED CASCADE ENGINE</span>
+            <span>PRESS [ESC] TO CLOSE</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Fade-in animation on load
+    setTimeout(() => {
+        const panel = document.getElementById('source-modal-panel');
+        if (panel) {
+            panel.classList.remove('opacity-0', 'scale-95');
+            panel.classList.add('opacity-100', 'scale-100');
+        }
+    }, 10);
+
+    // 2. Teardown logic
+    function closeSourceModal() {
+        const panel = document.getElementById('source-modal-panel');
+        const modal = document.getElementById('source-modal');
+        if (panel && modal) {
+            // Trigger fade out
+            panel.classList.remove('opacity-100', 'scale-100');
+            panel.classList.add('opacity-0', 'scale-95');
+            
+            // Wait for transition to finish before removing from DOM
+            setTimeout(() => {
+                modal.remove();
+            }, 200);
+        }
+    }
+
+    // 3. Close on Escape key
+    document.addEventListener('keydown', function escapeListener(e) {
+        if (e.key === 'Escape') {
+            closeSourceModal();
+            document.removeEventListener('keydown', escapeListener);
+        }
+    });
+</script>

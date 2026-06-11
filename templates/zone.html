@@ -1,0 +1,338 @@
+<!-- /templates/zone.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ state_code }} - Target Zone Dossier{% endblock %}
+
+{% block breadcrumbs %}
+    <a href="/bibliography{% if session_id %}?session_id={{ session_id }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" class="hover:text-white transition-colors">🗄️ Federal Bibliography</a>
+    <span class="mx-2">/</span>
+    <span class="text-green-400 font-medium">Zone Dossier: {{ state_code }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6 pb-12">
+
+    <!-- Header Area -->
+    <div class="flex flex-col md:flex-row md:justify-between md:items-end mb-4 border-b border-bordercolor pb-4 gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-white mb-2 flex items-center font-mono tracking-tight">
+                <span class="mr-3 text-green-400">{% if state_code == "GLOBAL" or state_code == "ALL" %}🌍{% else %}📍{% endif %}</span> {% if state_code == "GLOBAL" or state_code == "ALL" %}Global Operations{% else %}{{ state_code }}{% endif %}
+            </h1>
+            <p class="text-gray-400 uppercase tracking-widest text-xs font-mono">Geographic Target Zone Profile</p>
+        </div>
+        
+        <a href="/bibliography{% if session_id %}?session_id={{ session_id }}{% endif %}" hx-boost="true" hx-indicator="#global-loader" 
+           class="text-gray-300 border border-gray-600 hover:bg-[#2d2d2d] hover:text-white font-medium rounded-lg text-sm px-4 py-2 transition-colors">
+            ← Back to Bibliography
+        </a>
+    </div>
+
+    <!-- Methodology & API Confidence Section -->
+    <div class="bg-[#0a0a0a] border-l-4 border-green-500 p-5 rounded-r-lg text-sm text-gray-300 shadow-md">
+        <strong class="text-white text-base block mb-2 font-mono uppercase tracking-widest">Offline Intelligence Dossier</strong>
+        <p class="mb-3 leading-relaxed">
+            Scanning local cache for all financial flows and award intelligence executed within: <strong class="text-white">"{% if state_code == "GLOBAL" or state_code == "ALL" %}Global Operations{% else %}{{ state_code }}{% endif %}"</strong>. This view aggregates federal contracts and financial assistance (grants) captured during previous intelligence sweeps.
+        </p>
+        
+        <div class="mt-4 pt-4 border-t border-gray-800 flex flex-wrap justify-between items-center text-xs font-mono">
+            <span class="text-yellow-500 font-bold flex items-center">
+                <span class="h-2 w-2 rounded-full bg-yellow-500 mr-2 animate-pulse"></span> SYSTEM STATUS: OFFLINE SCAN
+            </span>
+            <span class="text-gray-400"><strong class="text-gray-300">Database:</strong> Local Cache</span>
+        </div>
+    </div>
+
+    <!-- Top Stats Row -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center">
+            <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">Total Captured Volume</h2>
+            <div class="text-3xl font-mono font-bold text-green-400">${{ "{:,.0f}".format(dossier.captured_volume) }}</div>
+        </div>
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center">
+            <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">Contracts Pipeline (Macro)</h2>
+            <div class="text-3xl font-mono font-bold text-blue-400">${{ "{:,.0f}".format(dossier.macro_volume) }}</div>
+        </div>
+        <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl text-center">
+            <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-2">Grants/Asst. Pipeline (Micro)</h2>
+            <div class="text-3xl font-mono font-bold text-purple-400">${{ "{:,.0f}".format(dossier.micro_volume) }}</div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mt-6">
+        
+        <!-- Left Sidebar: Metadata -->
+        <div class="lg:col-span-1 space-y-6">
+            
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl">
+                <div class="flex justify-between items-start mb-4">
+                    <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs">Known Funding Agencies</h2>
+                    <button id="clear-filter-btn" onclick="clearAllFilters()" class="hidden text-[9px] font-bold text-red-400 hover:text-red-300 hover:bg-red-900/40 uppercase tracking-widest transition-colors border border-red-900/50 bg-red-900/20 px-2 py-0.5 rounded cursor-pointer">
+                        Clear Filter
+                    </button>
+                </div>
+                
+                {% if dossier.known_agencies %}
+                <div class="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                    {% for agency in dossier.known_agencies %}
+                    <button onclick="filterAllTablesByAgency('{{ agency | replace('\'', '\\\'') }}')" 
+                            class="w-full text-left text-[11px] text-gray-300 bg-[#2d2d2d] hover:bg-green-900/40 hover:text-green-300 hover:border-green-700/50 border border-transparent px-2 py-1.5 rounded break-words transition-colors cursor-pointer flex items-start group">
+                        <span class="mr-1.5 opacity-0 group-hover:opacity-100 transition-opacity text-green-400">⚡</span>
+                        <span class="flex-1">{{ agency }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+                <p class="text-[10px] text-gray-500 font-mono mt-3 italic">Click an agency to instantly filter all ledger tables.</p>
+                {% else %}
+                <span class="text-xs text-gray-500 font-mono">Insufficient data</span>
+                {% endif %}
+            </div>
+
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 shadow-xl">
+                <h2 class="text-gray-500 font-mono font-semibold uppercase tracking-widest text-xs mb-4">Active Profile Years</h2>
+                {% if dossier.active_years %}
+                <div class="flex flex-wrap gap-2">
+                    {% for y in dossier.active_years %}
+                    <span class="bg-gray-800 text-gray-300 border border-gray-600 text-xs font-mono px-2 py-1 rounded">{{ y }}</span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <span class="text-xs text-gray-500 font-mono">Insufficient data</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Content: Tables (Vanilla JS Driven) -->
+        <div class="lg:col-span-3 space-y-8">
+            
+            <!-- Table 1: Macro Flows -->
+            {% if dossier.macro_flows %}
+            <div>
+                <div class="flex justify-between items-end mb-3 mt-2">
+                    <h3 class="text-lg font-bold text-white font-mono uppercase tracking-widest flex items-center">
+                        <span class="mr-2 text-blue-400">🏛️</span> Federal Contracts Ledger (Macro)
+                    </h3>
+                    <input type="text" id="search-macro" onkeyup="filterSingleTable('zone-macro-table', this.value)" placeholder="Search macro flows..." class="bg-darkbg border border-bordercolor text-gray-300 text-xs rounded px-3 py-2 focus:border-blue-400 outline-none w-48 transition-colors placeholder-gray-600">
+                </div>
+
+                <div class="rounded-xl border border-bordercolor shadow-xl bg-cardbg max-h-[500px] overflow-y-auto custom-scrollbar relative">
+                    <table id="zone-macro-table" class="w-full text-sm text-left text-gray-300">
+                        <thead class="text-xs text-gray-500 uppercase bg-[#0f0f0f] font-mono sticky top-0 z-10 shadow-sm border-b border-gray-800">
+                            <tr>
+                                <th scope="col" class="px-5 py-3 w-20">Year</th>
+                                <th scope="col" class="px-5 py-3">Funding Agency</th>
+                                <th scope="col" class="px-5 py-3">Prime Contractor</th>
+                                <th scope="col" class="px-5 py-3 text-right">Amount (USD)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800">
+                            {% for f in dossier.macro_flows %}
+                            <tr class="hover:bg-[#1a1a1a] transition-colors data-row">
+                                <td class="px-5 py-3 font-mono text-gray-400">{{ f.year }}</td>
+                                <td class="px-5 py-3 font-medium text-gray-300">{{ f.agency }}</td>
+                                <td class="px-5 py-3 text-white">
+                                    <a href="/profile?recipient={{ f.recipient | urlencode }}&tab=dossier{% if session_id %}&session_id={{ session_id }}{% endif %}" 
+                                       hx-boost="true" hx-indicator="#global-loader"
+                                       class="text-unblue font-bold hover:text-blue-400 transition-colors inline-flex items-center">
+                                        {{ f.recipient }}
+                                        <svg class="w-3 h-3 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                    </a>
+                                    <span class="ml-2 bg-blue-900/40 text-blue-300 border border-blue-700/50 text-[9px] px-1.5 py-0.5 rounded tracking-wide truncate max-w-[150px] inline-block align-middle" title="{{ f.flow_type }}">{{ f.flow_type }}</span>
+                                </td>
+                                <td class="px-5 py-3 text-right font-mono text-blue-400">${{ "{:,.0f}".format(f.amount) }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr id="no-results-macro" class="hidden"><td colspan="4" class="px-5 py-8 text-center text-gray-500 font-mono text-xs">No matching flows found</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Table 2: Micro Flows -->
+            {% if dossier.micro_flows %}
+            <div>
+                <div class="flex justify-between items-end mb-3 mt-8">
+                    <h3 class="text-lg font-bold text-white font-mono uppercase tracking-widest flex items-center">
+                        <span class="mr-2 text-purple-400">📄</span> Grants & Assistance Ledger (Micro)
+                    </h3>
+                    <input type="text" id="search-micro" onkeyup="filterSingleTable('zone-micro-table', this.value)" placeholder="Search micro flows..." class="bg-darkbg border border-bordercolor text-gray-300 text-xs rounded px-3 py-2 focus:border-purple-400 outline-none w-48 transition-colors placeholder-gray-600">
+                </div>
+
+                <div class="rounded-xl border border-bordercolor shadow-xl bg-cardbg max-h-[500px] overflow-y-auto custom-scrollbar relative">
+                    <table id="zone-micro-table" class="w-full text-sm text-left text-gray-300">
+                        <thead class="text-xs text-gray-500 uppercase bg-[#0f0f0f] font-mono sticky top-0 z-10 shadow-sm border-b border-gray-800">
+                            <tr>
+                                <th scope="col" class="px-5 py-3 w-20">Year</th>
+                                <th scope="col" class="px-5 py-3">Funding Agency</th>
+                                <th scope="col" class="px-5 py-3">Recipient / Grantee</th>
+                                <th scope="col" class="px-5 py-3 text-right">Amount (USD)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800">
+                            {% for f in dossier.micro_flows %}
+                            <tr class="hover:bg-[#1a1a1a] transition-colors data-row">
+                                <td class="px-5 py-3 font-mono text-gray-400">{{ f.year }}</td>
+                                <td class="px-5 py-3 font-medium text-gray-300">{{ f.agency }}</td>
+                                <td class="px-5 py-3 text-white">
+                                    <a href="/profile?recipient={{ f.recipient | urlencode }}&tab=dossier{% if session_id %}&session_id={{ session_id }}{% endif %}" 
+                                       hx-boost="true" hx-indicator="#global-loader"
+                                       class="text-purple-400 font-bold hover:text-purple-300 transition-colors inline-flex items-center">
+                                        {{ f.recipient }}
+                                        <svg class="w-3 h-3 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                    </a>
+                                </td>
+                                <td class="px-5 py-3 text-right font-mono text-purple-400">${{ "{:,.0f}".format(f.amount) }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr id="no-results-micro" class="hidden"><td colspan="4" class="px-5 py-8 text-center text-gray-500 font-mono text-xs">No matching flows found</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Table 3: Activity Texts -->
+            {% if dossier.projects %}
+            <div>
+                <div class="flex justify-between items-end mb-3 mt-8">
+                    <h3 class="text-lg font-bold text-white font-mono uppercase tracking-widest flex items-center">
+                        <span class="mr-2 text-green-400">📄</span> Captured Award Intelligence
+                    </h3>
+                    <input type="text" id="search-projects" onkeyup="filterSingleTable('zone-projects-table', this.value)" placeholder="Search project intelligence..." class="bg-darkbg border border-bordercolor text-gray-300 text-xs rounded px-3 py-2 focus:border-green-400 outline-none w-48 transition-colors placeholder-gray-600">
+                </div>
+
+                <div class="rounded-xl border border-bordercolor shadow-xl bg-cardbg max-h-[600px] overflow-y-auto custom-scrollbar relative">
+                    <table id="zone-projects-table" class="w-full text-sm text-left text-gray-300">
+                        <thead class="text-xs text-gray-500 uppercase bg-[#0f0f0f] font-mono sticky top-0 z-10 shadow-sm border-b border-gray-800">
+                            <tr>
+                                <th scope="col" class="px-5 py-3 w-28">Action Date</th>
+                                <th scope="col" class="px-5 py-3 w-48">Recipient Name</th>
+                                <th scope="col" class="px-5 py-3">Award ID & Description</th>
+                                <th scope="col" class="px-5 py-3 text-right">Amt</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800">
+                            {% for p in dossier.projects %}
+                            <tr class="hover:bg-[#1a1a1a] transition-colors data-row">
+                                <td class="px-5 py-4 text-xs font-mono text-gray-500">{{ p.date }}</td>
+                                <td class="px-5 py-4">
+                                    <a href="/profile?recipient={{ p.recipient_name | urlencode }}&tab=dossier{% if session_id %}&session_id={{ session_id }}{% endif %}" 
+                                       hx-boost="true" hx-indicator="#global-loader"
+                                       class="text-purple-400 font-bold hover:text-purple-300 transition-colors block leading-tight">
+                                        {{ p.recipient_name }}
+                                    </a>
+                                </td>
+                                <td class="px-5 py-4">
+                                    <details class="group cursor-pointer">
+                                        <summary class="text-white font-medium mb-1 hover:text-green-400 transition-colors flex items-center outline-none">
+                                            <svg class="w-4 h-4 mr-1.5 text-gray-600 group-open:rotate-90 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                            {{ p.project }}
+                                        </summary>
+                                        <div class="text-xs text-gray-400 leading-relaxed mt-2 pl-5 pb-2 border-l-2 border-gray-700 ml-2">
+                                            {{ p.description }}
+                                            <div class="mt-2 text-[10px] font-mono text-gray-600">AGENCY: {{ p.agency }}</div>
+                                        </div>
+                                    </details>
+                                </td>
+                                <td class="px-5 py-4 text-right font-mono text-green-400">${{ "{:,.0f}".format(p.amount) }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr id="no-results-projects" class="hidden"><td colspan="4" class="px-5 py-8 text-center text-gray-500 font-mono text-xs">No matching awards found</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if not dossier.macro_flows and not dossier.micro_flows and not dossier.projects %}
+            <div class="bg-[#111] border border-dashed border-gray-800 rounded-xl p-12 text-center h-full flex flex-col justify-center">
+                <span class="text-4xl mb-4 block">📭</span>
+                <p class="text-lg text-white font-medium mb-2">No intelligence on file</p>
+                <p class="text-gray-500 text-sm font-mono max-w-lg mx-auto">
+                    The local cache has not captured any historical context for <strong>{{ state_code }}</strong>. 
+                </p>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+</div>
+
+<!-- Custom Scrollbar CSS -->
+<style>
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+</style>
+
+<!-- 100% VANILLA JAVASCRIPT FILTERING - NO 3RD PARTY DEPENDENCIES -->
+<script>
+    // Filters a specific table by a text string (used by the search inputs above each table)
+    window.filterSingleTable = function(tableId, query) {
+        const table = document.getElementById(tableId);
+        if (!table) return;
+
+        const lowerQuery = query.toLowerCase();
+        const rows = table.querySelectorAll('tbody tr.data-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            // Check the entire text content of the row
+            const textContent = row.textContent || row.innerText;
+            if (textContent.toLowerCase().includes(lowerQuery)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Toggle the "No results found" message
+        const noResultsId = tableId.replace('zone-', 'no-results-').replace('-table', '');
+        const noResultsEl = document.getElementById(noResultsId);
+        if (noResultsEl) {
+            noResultsEl.style.display = visibleCount === 0 ? '' : 'none';
+        }
+    };
+
+    // Filters ALL tables globally (Triggered by clicking the left sidebar Agencies)
+    window.filterAllTablesByAgency = function(agencyName) {
+        // Show the clear filter button
+        const clearBtn = document.getElementById('clear-filter-btn');
+        if (clearBtn) clearBtn.classList.remove('hidden');
+
+        // Sync the individual search boxes so the user sees what is being filtered
+        const tableInputs = ['search-macro', 'search-micro', 'search-projects'];
+        tableInputs.forEach(inputId => {
+            const el = document.getElementById(inputId);
+            if (el) el.value = agencyName;
+        });
+
+        // Filter all three tables
+        filterSingleTable('zone-macro-table', agencyName);
+        filterSingleTable('zone-micro-table', agencyName);
+        filterSingleTable('zone-projects-table', agencyName);
+    };
+
+    // Clears all filters and resets tables
+    window.clearAllFilters = function() {
+        // Hide the clear filter button
+        const clearBtn = document.getElementById('clear-filter-btn');
+        if (clearBtn) clearBtn.classList.add('hidden');
+
+        // Clear search boxes
+        const tableInputs = ['search-macro', 'search-micro', 'search-projects'];
+        tableInputs.forEach(inputId => {
+            const el = document.getElementById(inputId);
+            if (el) el.value = '';
+        });
+
+        // Reset all tables to show all rows
+        filterSingleTable('zone-macro-table', '');
+        filterSingleTable('zone-micro-table', '');
+        filterSingleTable('zone-projects-table', '');
+    };
+</script>
+{% endblock %}
